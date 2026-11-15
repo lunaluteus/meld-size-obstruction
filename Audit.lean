@@ -2,6 +2,7 @@ module
 
 import MeldSizeObstruction.Hands
 import MeldSizeObstruction.EvenConstruction
+import MeldSizeObstruction.PeriodicConstruction
 import Mathlib.Tactic.IntervalCases
 
 #print axioms MeldSizeObstruction.draw_eye_rigidity
@@ -11,6 +12,8 @@ import Mathlib.Tactic.IntervalCases
 #print axioms MeldSizeObstruction.exists_fullWait_iff
 #print axioms MeldSizeObstruction.fullWait_sparse
 #print axioms MeldSizeObstruction.exists_fullWait_even
+#print axioms MeldSizeObstruction.fullWait_periodic
+#print axioms MeldSizeObstruction.exists_fullWait_periodic
 
 open MeldSizeObstruction
 
@@ -71,6 +74,22 @@ example (ranks : ℕ) (hranks : 4 ≤ ranks) :
       h.card + 1 = 5 + 4 * ((ranks + 1) / 2 + 1) := by
   obtain ⟨h, hw, hc⟩ := exists_fullWait_even 1 (by decide) (by decide) hranks
   exact ⟨h, hw, by omega⟩
+
+/-- Odd meld sizes admit the same endpoint-transfer construction. -/
+example : FullWait 5 6 9 (periodicHand 5 1 9) ∧
+    (periodicHand 5 1 9).card + 1 = 6 + 5 * 6 :=
+  ⟨fullWait_periodic 1 (by decide) (by decide), by decide⟩
+
+/-- A longer odd-meld example exercises complete blocks and a partial block. -/
+example : ∃ h : Multiset ℕ, FullWait 5 6 16 h ∧ h.card + 1 = 6 + 5 * 11 := by
+  exact exists_fullWait_periodic 1 (by decide) (by decide)
+
+/-- Three-tile melds also permit this construction with a four-tile eye. -/
+example : ∃ h : Multiset ℕ, FullWait 3 4 9 h ∧ h.card + 1 = 4 + 3 * 6 := by
+  exact exists_fullWait_periodic 1 (by decide) (by decide)
+
+/-- A sparse construction's count is only an existence bound: q=0 needs no melds. -/
+example (k ranks : ℕ) : FullWait k 1 ranks 0 := fullWait_single_eye k ranks
 
 /-- With only one drawable residue, the eye obstruction no longer applies. -/
 example : FullWait 4 2 1 (Multiset.replicate 5 0) := by

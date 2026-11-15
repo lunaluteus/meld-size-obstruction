@@ -1,7 +1,6 @@
 module
 
-public import MeldSizeObstruction.Construction
-public import Mathlib.Tactic.Linarith
+public import MeldSizeObstruction.SparseEyes
 
 /-!
 # Full-sided waits with fewer melds for even meld sizes
@@ -18,15 +17,6 @@ set_option autoImplicit false
 
 namespace MeldSizeObstruction
 
-/-- Odd residues use a left eye; even residues use the rightmost available eye. -/
-def sparseEye (k ranks residue : ℕ) : ℕ :=
-  if residue % 2 = 1 then residue
-  else residue + k * ((ranks - 1 - residue) / k)
-
-/-- One eye rank for each rank residue. -/
-def sparseEyes (k ranks : ℕ) : Finset ℕ :=
-  (Finset.range k).image (sparseEye k ranks)
-
 /-- Consecutive melds starting at alternate interior ranks. -/
 def sparseStarts (k ranks : ℕ) : Finset ℕ :=
   (Finset.range ((ranks - k) / 2)).image (fun i => 2 * i + 1)
@@ -41,31 +31,9 @@ private theorem mem_sparseStarts {k ranks s : ℕ} :
   · rintro ⟨hlt, hodd⟩
     exact Finset.mem_image.mpr ⟨s / 2, Finset.mem_range.mpr (by omega), by omega⟩
 
-private theorem sparseEye_mod {k ranks r : ℕ} (hr : r < k) :
-    sparseEye k ranks r % k = r := by
-  unfold sparseEye
-  split_ifs <;> simp [Nat.add_mod, Nat.mod_eq_of_lt hr]
-
-private theorem sparseEye_lt {k ranks r : ℕ} (hr : r < ranks) :
-    sparseEye k ranks r < ranks := by
-  unfold sparseEye
-  split_ifs
-  · exact hr
-  · have := Nat.mul_div_le (ranks - 1 - r) k
-    omega
-
 private theorem sparseEye_even {k ranks r : ℕ} (hk : k % 2 = 0) (hr : r % 2 = 0) :
     sparseEye k ranks r % 2 = 0 := by
   simp [sparseEye, hr, Nat.add_mod, Nat.mul_mod, hk]
-
-/-- The eye set has exactly one rank in every residue class. -/
-theorem card_sparseEyes (k ranks : ℕ) : (sparseEyes k ranks).card = k := by
-  rw [sparseEyes, Finset.card_image_iff.mpr]
-  · exact Finset.card_range k
-  · intro a ha b hb hab
-    have hmod := congrArg (· % k) hab
-    simpa only [sparseEye_mod (Finset.mem_range.mp ha),
-      sparseEye_mod (Finset.mem_range.mp hb)] using hmod
 
 /-- The alternating sequence family has half as many members as spare ranks. -/
 theorem card_sparseStarts (k ranks : ℕ) :
@@ -74,20 +42,6 @@ theorem card_sparseStarts (k ranks : ℕ) :
     intro i j hij
     change 2 * i + 1 = 2 * j + 1 at hij
     omega), Finset.card_range]
-
-private theorem sparseEye_of_even_draw {k ranks draw : ℕ} (hk : 0 < k)
-    (hkeven : k % 2 = 0) (hdraw : draw < ranks) (hdeven : draw % 2 = 0) :
-    sparseEye k ranks (draw % k) = draw + ((ranks - 1 - draw) / k) * k := by
-  have hres : draw % k % 2 = 0 := by
-    rw [Nat.mod_mod_of_dvd draw (Nat.dvd_of_mod_eq_zero hkeven)]
-    exact hdeven
-  have hsub : ranks - 1 - draw % k = (ranks - 1 - draw) + k * (draw / k) := by
-    have := Nat.mod_add_div draw k
-    omega
-  simp only [sparseEye, hres, Nat.zero_ne_one, ↓reduceIte, hsub,
-    Nat.add_mul_div_left _ _ hk]
-  have := Nat.mod_add_div draw k
-  nlinarith
 
 private theorem sparse_transfers {k ranks : ℕ} (hk : 0 < k)
     (hkeven : k % 2 = 0) (hreven : ranks % 2 = 0) (hkr : k ≤ ranks) :
@@ -120,7 +74,9 @@ private theorem sparse_transfers {k ranks : ℕ} (hk : 0 < k)
     let n := (ranks - 1 - draw) / k
     let eye := draw + n * k
     have heye_eq : sparseEye k ranks (draw % k) = eye :=
-      sparseEye_of_even_draw hk hkeven hdraw hdeven
+      sparseEye_of_even_residue hk hdraw (by
+        rw [Nat.mod_mod_of_dvd draw (Nat.dvd_of_mod_eq_zero hkeven)]
+        exact hdeven)
     have heye : eye ∈ sparseEyes k ranks :=
       Finset.mem_image.mpr ⟨draw % k, Finset.mem_range.mpr (Nat.mod_lt _ hk), heye_eq⟩
     have heyelt : eye < ranks := by

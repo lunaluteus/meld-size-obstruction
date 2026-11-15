@@ -77,7 +77,7 @@ This proves existence for some meld count, not for every prescribed
 meld count. The assumptions that the meld and sequence lengths agree
 and that all `k` residue classes can be drawn are essential to the proof.
 
-### A smaller construction for even meld sizes
+### A construction with a fixed meld count
 
 If `k >= 2` is even, `R >= k`, and `p = 1 + k*q` with `q >= 0`, there
 is a full-sided wait whose winning decompositions use exactly
@@ -119,9 +119,27 @@ For odd `R`, use the even construction on `R+1` ranks. Its extra last rank
 has zero waiting tiles, and every certificate for a draw below `R` stays
 inside the original suit. This gives the ceiling in the formula above.
 
+The same endpoint-transfer argument extends to **every `k >= 2`**, including
+odd meld sizes. Set `L = R-k`. Choose the leftmost rank in each odd residue
+class as an eye and the rightmost rank in each even residue class. Add a
+consecutive meld at start `s=t+1` whenever `0 <= t < L` and `(t mod k)` is
+even. The exact winning meld count is
+
+```math
+m = q(k-1)
+  + \left\lfloor\frac{L}{k}\right\rfloor\left\lceil\frac{k}{2}\right\rceil
+  + \left\lceil\frac{L\bmod k}{2}\right\rceil.
+```
+
+For even `k` this reduces to the earlier formula. For example, five-tile
+melds with a six-tile eye admit a full-sided wait on sixteen ranks with
+eleven winning melds. This construction also does not claim optimality.
+In particular, when `q=0` the eye is a single tile, so the empty hand
+already gives a zero-meld full-sided wait for any number of ranks.
+
 [`constructions.py`](constructions.py) returns the hand and an explicit
-winning certificate for each draw. Tests reconstruct all 140,392 draw
-certificates for even `k=2,...,14`, `k <= R <= 100`, and `q=0,...,3`.
+winning certificate for each draw. Tests reconstruct all 280,560 draw
+certificates for `k=2,...,15`, `k <= R <= 100`, and `q=0,...,3`.
 The unbounded result is proved in Lean below. Tile multiplicities remain
 unrestricted; this is not a result about live waits under a four-copy rule.
 
@@ -192,6 +210,17 @@ instantiates that argument with alternating sequence starts:
 - `exists_fullWait_even` packages the actual hand, full-sidedness, and
   exact size in one existence theorem.
 
+[`SparseEyes.lean`](MeldSizeObstruction/SparseEyes.lean) supplies the shared
+eye ranks and their residue and boundary properties.
+[`PeriodicConstruction.lean`](MeldSizeObstruction/PeriodicConstruction.lean)
+extends the construction to arbitrary meld sizes:
+
+- `fullWait_periodic` proves the actual hand wins after every draw.
+- `card_periodicStarts` proves the closed count of selected sequences.
+- `periodicMeldCount_even` proves the even-size simplification.
+- `periodicHand_card` and `exists_fullWait_periodic` give the exact hand
+  size and the corresponding existence theorem.
+
 With the pinned Lean toolchain installed:
 
 ```sh
@@ -201,10 +230,10 @@ lake env lean Audit.lean
 ```
 
 The axiom audit reports only `propext`, `Classical.choice`, and `Quot.sound`
-for the algebraic core, the hand-level obstruction, both constructive
+for the algebraic core, the hand-level obstruction, the constructive
 existence theorems, and the existence converse. `Audit.lean` checks forbidden-eye
 cases, a five-tile eye with four-tile melds, and all nine draws of ordinary
 Nine Gates through explicit winning decompositions. It also checks that
 the three-coordinate, characteristic-two, and short-suit exceptions are
-real, as well as odd suit lengths, the zero-meld boundary, and the
-smallest even meld size in the sparse construction.
+real, as well as odd suit lengths, the zero-meld boundary, the smallest
+even meld size, and the periodic construction for odd meld sizes.

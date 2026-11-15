@@ -149,6 +149,12 @@ def FullWait (k p ranks : ℕ) (hand : Multiset ℕ) : Prop :=
   (∀ tile ∈ hand, tile < ranks) ∧
     ∀ tile < ranks, WinningHand k p (hand + {tile})
 
+/-- For a single-tile eye the empty hand is a full-sided wait with no melds. -/
+theorem fullWait_single_eye (k ranks : ℕ) : FullWait k 1 ranks 0 := by
+  refine ⟨by simp, ?_⟩
+  intro draw _
+  exact ⟨draw, 0, Melds.empty, by simp⟩
+
 /-- Drawing every rank covers every residue when the suit has at least `k` ranks. -/
 theorem FullWait.residueCompatible {h : Multiset ℕ} (hw : FullWait k p ranks h)
     (hk : 0 < k) (hranks : k ≤ ranks) :
