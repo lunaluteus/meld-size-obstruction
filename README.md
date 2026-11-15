@@ -267,3 +267,25 @@ Nine Gates through explicit winning decompositions. It also checks that
 the three-coordinate, characteristic-two, and short-suit exceptions are
 real, as well as odd suit lengths, the zero-meld boundary, the smallest
 even meld size, and the periodic construction for odd meld sizes.
+
+## Continuous verification
+
+GitHub Actions builds the pinned Lean library, checks `Audit.lean` with
+warnings treated as errors, enforces the axiom allowlist over the whole
+library, and runs the Python certificate checks. The workflow runs on
+pushes to `main`, pull requests, and manual dispatches.
+
+To run the enforcing axiom audit locally after installing the pinned Lean
+toolchain:
+
+```sh
+bash scripts/audit-axioms.sh
+```
+
+This builds a pinned version of
+[`axiom-audit`](https://github.com/leanprover-community/axiom-audit) using
+the project's toolchain. It imports every module under
+`MeldSizeObstruction/`, including modules outside the root file's import
+closure, and fails if a declaration uses any axiom beyond `propext`,
+`Classical.choice`, and `Quot.sound`. The audit complements the Lean build;
+it checks axiom dependencies in the compiled environment.
