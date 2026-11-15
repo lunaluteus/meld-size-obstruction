@@ -77,6 +77,54 @@ This proves existence for some meld count, not for every prescribed
 meld count. The assumptions that the meld and sequence lengths agree
 and that all `k` residue classes can be drawn are essential to the proof.
 
+### A smaller construction for even meld sizes
+
+If `k >= 2` is even, `R >= k`, and `p = 1 + k*q` with `q >= 0`, there
+is a full-sided wait whose winning decompositions use exactly
+
+```math
+m = q(k-1) + \left\lceil\frac{R-k}{2}\right\rceil
+```
+
+melds. This is an existence bound; optimality is not claimed. For example,
+four-tile melds and a five-tile eye admit the six-rank waiting hand
+`(0,5,5,5,5,0)`, with four melds after every draw. More generally, for
+`k=4` and `p=5`, the construction uses `ceil(R/2)+1` winning melds.
+
+Here is the construction for even `R`, with ranks numbered from zero.
+Choose the `k` possible eye ranks
+
+```math
+E = \{1,3,\ldots,k-1\}\;\cup\;\{R-k,R-k+2,\ldots,R-2\}.
+```
+
+They contain one representative of every residue modulo `k`. Put `k*q`
+identical tiles at every rank in `E`, then add one consecutive meld at
+each odd start `1,3,...,R-k-1`. Write `D_s` for the consecutive meld
+starting at `s`. The identity
+
+```math
+D_{s+1}-D_s = e_{s+k}-e_s
+```
+
+lets a chain of shifts transfer the drawn tile to an eye rank in the same
+residue class. For an odd draw, right-shift a chain connecting the left
+eye to the draw; for an even draw, left-shift a chain connecting the draw
+to the right eye.
+Combining the transferred tile with the eye's `k*q` tiles leaves
+`q*(k-1)` identical melds and `(R-k)/2` consecutive melds. The Lean proof
+uses exact multiset equalities, with nonnegative tiles throughout.
+
+For odd `R`, use the even construction on `R+1` ranks. Its extra last rank
+has zero waiting tiles, and every certificate for a draw below `R` stays
+inside the original suit. This gives the ceiling in the formula above.
+
+[`constructions.py`](constructions.py) returns the hand and an explicit
+winning certificate for each draw. Tests reconstruct all 140,392 draw
+certificates for even `k=2,...,14`, `k <= R <= 100`, and `q=0,...,3`.
+The unbounded result is proved in Lean below. Tile multiplicities remain
+unrestricted; this is not a result about live waits under a four-copy rule.
+
 ## Computational checks
 
 Python 3.10 or later; no third-party dependencies:
@@ -130,6 +178,20 @@ Tile multiplicities are unrestricted in both the Lean model and Python
 search. Mathlib's `Nat.multiset_Ico_map_mod` supplies the counting fact for
 consecutive melds: every rank residue occurs exactly once.
 
+[`Construction.lean`](MeldSizeObstruction/Construction.lean) proves the
+multiset identity for shifting a sequence, telescopes it along a chain,
+and gives `fullWait_of_transfers`: endpoint transfers plus a finite set
+of eye blocks suffice to construct a full-sided wait.
+[`EvenConstruction.lean`](MeldSizeObstruction/EvenConstruction.lean)
+instantiates that argument with alternating sequence starts:
+
+- `fullWait_sparse` proves full-sidedness for every even `k >= 2`,
+  every `R >= k`, and every `q >= 0`, with eye size `1+k*q`.
+- `sparseHand_card` computes the exact hand size, hence fixes the winning
+  meld count to the displayed formula.
+- `exists_fullWait_even` packages the actual hand, full-sidedness, and
+  exact size in one existence theorem.
+
 With the pinned Lean toolchain installed:
 
 ```sh
@@ -139,9 +201,10 @@ lake env lean Audit.lean
 ```
 
 The axiom audit reports only `propext`, `Classical.choice`, and `Quot.sound`
-for the algebraic core, the hand-level obstruction, the constructive
-existence theorem, and its converse. `Audit.lean` checks forbidden-eye
+for the algebraic core, the hand-level obstruction, both constructive
+existence theorems, and the existence converse. `Audit.lean` checks forbidden-eye
 cases, a five-tile eye with four-tile melds, and all nine draws of ordinary
 Nine Gates through explicit winning decompositions. It also checks that
 the three-coordinate, characteristic-two, and short-suit exceptions are
-real.
+real, as well as odd suit lengths, the zero-meld boundary, and the
+smallest even meld size in the sparse construction.

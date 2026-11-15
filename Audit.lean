@@ -1,6 +1,7 @@
 module
 
 import MeldSizeObstruction.Hands
+import MeldSizeObstruction.EvenConstruction
 import Mathlib.Tactic.IntervalCases
 
 #print axioms MeldSizeObstruction.draw_eye_rigidity
@@ -8,6 +9,8 @@ import Mathlib.Tactic.IntervalCases
 #print axioms MeldSizeObstruction.FullWait.obstruction
 #print axioms MeldSizeObstruction.fullWait_uniform
 #print axioms MeldSizeObstruction.exists_fullWait_iff
+#print axioms MeldSizeObstruction.fullWait_sparse
+#print axioms MeldSizeObstruction.exists_fullWait_even
 
 open MeldSizeObstruction
 
@@ -44,6 +47,30 @@ example (h : Multiset ℕ) : ¬ FullWait 5 2 9 h :=
 /-- A five-tile eye and four-tile melds admit an actual six-rank full wait. -/
 example : FullWait 4 5 6 (uniformHand 4 1 6) :=
   fullWait_uniform 4 1 (by decide)
+
+/-- The sparse construction needs only four melds over these six ranks. -/
+example : FullWait 4 5 6 (sparseHand 4 1 6) ∧
+    (sparseHand 4 1 6).card + 1 = 5 + 4 * 4 :=
+  ⟨fullWait_sparse 1 (by decide) (by decide) (by decide), by decide⟩
+
+/-- Padding for an odd suit length leaves all tiles inside the original suit. -/
+example : ∃ h : Multiset ℕ, FullWait 4 5 13 h ∧ h.card + 1 = 5 + 4 * 8 := by
+  exact exists_fullWait_even 1 (by decide) (by decide) (by decide)
+
+/-- The empty hand works when the eye is a single tile and ranks equal meld size. -/
+example : FullWait 4 1 4 (sparseHand 4 0 4) ∧ (sparseHand 4 0 4).card = 0 :=
+  ⟨fullWait_sparse 0 (by decide) (by decide) (by decide), by decide⟩
+
+/-- The construction also works at the smallest even meld size. -/
+example : ∃ h : Multiset ℕ, FullWait 2 5 7 h ∧ h.card + 1 = 5 + 2 * 5 := by
+  exact exists_fullWait_even 2 (by decide) (by decide) (by decide)
+
+/-- The advertised four-tile formula holds for arbitrary suit lengths. -/
+example (ranks : ℕ) (hranks : 4 ≤ ranks) :
+    ∃ h : Multiset ℕ, FullWait 4 5 ranks h ∧
+      h.card + 1 = 5 + 4 * ((ranks + 1) / 2 + 1) := by
+  obtain ⟨h, hw, hc⟩ := exists_fullWait_even 1 (by decide) (by decide) hranks
+  exact ⟨h, hw, by omega⟩
 
 /-- With only one drawable residue, the eye obstruction no longer applies. -/
 example : FullWait 4 2 1 (Multiset.replicate 5 0) := by
