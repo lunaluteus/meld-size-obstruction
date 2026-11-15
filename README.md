@@ -48,10 +48,12 @@ Now subtract the equations for any distinct `i,j`:
 e_i-e_j-p(e_{f(i)}-e_{f(j)})=(a_i-a_j)\mathbf{1}.
 ```
 
-If a coordinate lies outside `{i,j,f(i),f(j)}`, it forces `a_i=a_j`.
-The only remaining possibility is `k=4` with all four indices distinct.
-In that case the `i` and `j` coordinates force the scalar to be both `1`
-and `-1`, impossible modulo four. Thus `a_i=a_j` always, and
+Choose distinct coordinates `r,s` outside `{f(i),f(j)}`; this is possible
+because `k >= 4`. At those coordinates, the left side is respectively
+`(e_i-e_j)_r` and `(e_i-e_j)_s`. If their common value were nonzero,
+`r,s` would have to be `i,j` in some order, forcing that common value to
+be both `1` and `-1`. This is impossible modulo `k >= 4`.
+Thus `a_i=a_j` always, and
 
 ```math
 e_i-e_j=p(e_{f(i)}-e_{f(j)}).
@@ -96,5 +98,28 @@ ordinary Nine Gates, positive examples with `p=1 (mod k)`, and the failed
 four-tile analogue `(4,1,1,1,1,1,1,4)` with a three-tile eye. That analogue
 wins only on ranks `1,4,5,8` (written here with one-based ranks).
 
-This is an elementary proof and an executable exploration, not a Lean
-formalization.
+## Lean verification
+
+[MeldSizeObstruction.lean](MeldSizeObstruction.lean) formalizes the algebraic
+core in Lean 4.35.0 with Mathlib:
+
+- `draw_eye_rigidity` works over any nontrivial commutative ring with
+  `1 != -1`, with at least four coordinates.
+- `residue_compatible_iff` classifies the necessary modular condition:
+  it holds exactly when `p=1` and all class counts agree modulo `k`.
+
+The Lean portion covers the residue equations. The reduction from tile
+hands is the counting argument above; exact winning decompositions are
+checked by Python.
+
+With the pinned Lean toolchain installed:
+
+```sh
+lake exe cache get
+lake build
+lake env lean Audit.lean
+```
+
+The axiom audit reports `propext`, `Classical.choice`, and `Quot.sound`.
+`Audit.lean` also checks concrete forbidden-eye cases and witnesses that
+the three-coordinate and characteristic-two exceptions are real.
