@@ -3,6 +3,7 @@ module
 import MeldSizeObstruction.Hands
 import MeldSizeObstruction.EvenConstruction
 import MeldSizeObstruction.PeriodicConstruction
+import MeldSizeObstruction.LowerBounds
 import Mathlib.Tactic.IntervalCases
 
 #print axioms MeldSizeObstruction.draw_eye_rigidity
@@ -14,6 +15,9 @@ import Mathlib.Tactic.IntervalCases
 #print axioms MeldSizeObstruction.exists_fullWait_even
 #print axioms MeldSizeObstruction.fullWait_periodic
 #print axioms MeldSizeObstruction.exists_fullWait_periodic
+#print axioms MeldSizeObstruction.FullWait.meld_count_lower
+#print axioms MeldSizeObstruction.FullWait.meld_count_strict_lower
+#print axioms MeldSizeObstruction.minimum_meld_count_short
 
 open MeldSizeObstruction
 
@@ -90,6 +94,29 @@ example : ∃ h : Multiset ℕ, FullWait 3 4 9 h ∧ h.card + 1 = 4 + 3 * 6 := b
 
 /-- A sparse construction's count is only an existence bound: q=0 needs no melds. -/
 example (k ranks : ℕ) : FullWait k 1 ranks 0 := fullWait_single_eye k ranks
+
+/-- Four-tile melds and a five-tile eye need at least four melds on six ranks. -/
+example (h : Multiset ℕ) (m : ℕ) (hw : FullWait 4 5 6 h)
+    (hc : h.card + 1 = 5 + 4 * m) : 4 ≤ m :=
+  hw.meld_count_strict_lower (q := 1) (by decide) (by decide) (by decide) hc
+
+/-- The exact short-suit minimum also holds for arbitrary positive eye quotients. -/
+example (k q : ℕ) (hk : 4 ≤ k) (hq : 0 < q) :
+    (∃ h : Multiset ℕ, FullWait k (1 + k * q) (k + 2) h ∧
+      h.card + 1 = (1 + k * q) + k * (q * (k - 1) + 1)) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait k (1 + k * q) (k + 2) h →
+      h.card + 1 = (1 + k * q) + k * m → q * (k - 1) + 1 ≤ m := by
+  simpa using minimum_meld_count_short (k := k) (q := q) (ranks := k + 2)
+    hk hq (by omega) le_rfl
+
+/-- With exactly k ranks the capacity bound itself is attained. -/
+example (k q : ℕ) (hk : 4 ≤ k) (hq : 0 < q) :
+    (∃ h : Multiset ℕ, FullWait k (1 + k * q) k h ∧
+      h.card + 1 = (1 + k * q) + k * (q * (k - 1))) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait k (1 + k * q) k h →
+      h.card + 1 = (1 + k * q) + k * m → q * (k - 1) ≤ m := by
+  simpa using minimum_meld_count_short (k := k) (q := q) (ranks := k)
+    hk hq le_rfl (by omega)
 
 /-- With only one drawable residue, the eye obstruction no longer applies. -/
 example : FullWait 4 2 1 (Multiset.replicate 5 0) := by

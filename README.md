@@ -143,6 +143,36 @@ certificates for `k=2,...,15`, `k <= R <= 100`, and `q=0,...,3`.
 The unbounded result is proved in Lean below. Tile multiplicities remain
 unrestricted; this is not a result about live waits under a four-copy rule.
 
+### Lower bounds and exact minima for short suits
+
+For `k >= 4`, `R >= k`, and `p = 1+k*q`, every full-sided wait needs at
+least `q*(k-1)` winning melds. If `q > 0` and `R > k`, it needs at least
+one more. Together with the periodic construction, this determines the
+exact minimum for the first three suit lengths:
+
+| Number of ranks | Minimum winning meld count, for `q > 0` |
+| --- | --- |
+| `R = k` | `q*(k-1)` |
+| `R = k+1` or `R = k+2` | `q*(k-1)+1` |
+
+The argument uses actual tile counts. The residue obstruction forces every
+winning eye into the draw's residue class, so each class must contain at
+least `p-1` waiting tiles. Summing gives `|H| >= k*(p-1)`. If equality held
+with more than `k` drawable ranks, drawing ranks `0` and `k` would require
+all `p-1` tiles of their common class to be concentrated at each of these
+two distinct ranks. This contradicts `p>1` and makes the bound strict.
+The hand-size equation then gives the extra meld.
+
+For example, the six-rank four-tile-meld construction with a five-tile eye
+uses four winning melds, and four is now proved to be the minimum. No exact
+minimum is claimed here for `R > k+2`. For `q=0`, the empty-hand minimum
+is zero for every suit length, as noted above.
+
+[`LowerBounds.lean`](MeldSizeObstruction/LowerBounds.lean) proves
+`FullWait.eye_residue`, the class-capacity and meld-count bounds, and
+`minimum_meld_count_short`. The last theorem includes both an attaining
+hand and a lower bound for every full-sided wait with the same parameters.
+
 ## Computational checks
 
 Python 3.10 or later; no third-party dependencies:
