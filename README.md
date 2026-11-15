@@ -108,9 +108,27 @@ core in Lean 4.35.0 with Mathlib:
 - `residue_compatible_iff` classifies the necessary modular condition:
   it holds exactly when `p=1` and all class counts agree modulo `k`.
 
-The Lean portion covers the residue equations. The reduction from tile
-hands is the counting argument above; exact winning decompositions are
-checked by Python.
+[MeldSizeObstruction/Hands.lean](MeldSizeObstruction/Hands.lean) connects
+the equations to literal finite multisets of tiles. `Melds` builds identical
+and consecutive melds, `WinningHand` requires an exact decomposition into
+melds and an eye, and `FullWait` requires a win after every draw in the suit.
+The hand and its draws have ranks below `R`; exact multiset equality keeps
+every tile in a winning decomposition within that same range.
+
+- `FullWait.obstruction` and `FullWait.eye_mod_one` prove the obstruction
+  for actual hands, including equality of the residue-class counts.
+- `not_fullWait_pair` and `not_fullWait_pred` rule out two-tile and
+  `(k-1)`-tile eyes.
+- `fullWait_uniform` verifies the explicit construction for every eye size
+  `p = 1 + k*q`.
+- `exists_fullWait_iff` proves that, for `k >= 4` and `R >= k`, full-sided
+  waits exist exactly when `p = 1 (mod k)`. This allows the meld count to
+  vary; particular hands and prescribed meld counts still require their
+  own decompositions.
+
+Tile multiplicities are unrestricted in both the Lean model and Python
+search. Mathlib's `Nat.multiset_Ico_map_mod` supplies the counting fact for
+consecutive melds: every rank residue occurs exactly once.
 
 With the pinned Lean toolchain installed:
 
@@ -120,6 +138,10 @@ lake build
 lake env lean Audit.lean
 ```
 
-The axiom audit reports `propext`, `Classical.choice`, and `Quot.sound`.
-`Audit.lean` also checks concrete forbidden-eye cases and witnesses that
-the three-coordinate and characteristic-two exceptions are real.
+The axiom audit reports only `propext`, `Classical.choice`, and `Quot.sound`
+for the algebraic core, the hand-level obstruction, the constructive
+existence theorem, and its converse. `Audit.lean` checks forbidden-eye
+cases, a five-tile eye with four-tile melds, and all nine draws of ordinary
+Nine Gates through explicit winning decompositions. It also checks that
+the three-coordinate, characteristic-two, and short-suit exceptions are
+real.
