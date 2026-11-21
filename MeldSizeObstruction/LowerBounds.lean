@@ -760,7 +760,9 @@ private theorem FullWait.exists_drawPair_high_counts {h : Multiset ℕ} {q t : �
     (hpeq : p = 1 + k * q) (hq : 0 < q) (ht : t < k) (pairs : Finset ℕ)
     (hdraws : ∀ a ∈ pairs, a + k < ranks)
     (hsize : ∀ a ∈ pairs, residueSize k h (rankResidue (by omega : 0 < k) a) = p - 1 + t) :
-    ∃ low base : ℕ → ℕ,
+    ∃ anchor low base : ℕ → ℕ,
+      (∀ a ∈ pairs, anchor a % k = a % k ∧ p ≤ h.count (anchor a)) ∧
+      (∀ a ∈ pairs, base a = low a + if a + k ≤ anchor a then 1 else 0) ∧
       (∀ a ∈ pairs, low a < t) ∧ (∀ a ∈ pairs, base a ≤ t) ∧
       ∀ {a b}, a ∈ pairs → b ∈ pairs → a < b → a % k ≠ b % k →
         base b ≤ low a ∧ low b < base a := by
@@ -874,7 +876,7 @@ private theorem FullWait.exists_drawPair_high_counts {h : Multiset ℕ} {q t : �
       simp only [drawPairHighCount_add, drawPairHighCount_replicate, hdr, (hanchor a ha).1,
         hdiff, and_false, ite_false, add_zero, zero_add] at heq
       rw [← heq, hbaseMod b hb]
-  refine ⟨low, base, hlow, hbase, ?_⟩
+  refine ⟨anchor, low, base, hanchor, fun _ _ => rfl, hlow, hbase, ?_⟩
   intro a b ha hb hab hdiff
   have halow : ¬a + k ≤ a := by omega
   obtain ⟨f, hanti, hself, hother⟩ := hdraw a ha a (hdrawLow a ha) rfl
@@ -886,6 +888,93 @@ private theorem FullWait.exists_drawPair_high_counts {h : Multiset ℕ} {q t : �
   simp [halow] at hf
   simp at hg
   exact ⟨hf, hg⟩
+
+private theorem tight_pair_counts {t : ℕ} (low base : ℕ → ℕ)
+    (hlow : ∀ i < 2 * t, low i < t) (hbase : ∀ i < 2 * t, base i ≤ t)
+    (hflag : ∀ i < 2 * t, low i ≤ base i ∧ base i ≤ low i + 1)
+    (hpair : ∀ i, i + 1 < 2 * t → base (i + 1) ≤ low i ∧ low (i + 1) < base i) :
+    ∀ i < 2 * t, base i = t - (i + 1) / 2 ∧ low i = t - 1 - i / 2 := by
+  let f (i : ℕ) := low i + base i + i
+  have hf (i : ℕ) (hi : i + 1 < 2 * t) : f (i + 1) ≤ f i := by
+    obtain ⟨h₁, h₂⟩ := hpair i hi
+    dsimp [f]
+    omega
+  have hanti (a b : ℕ) (hab : a ≤ b) (hb : b < 2 * t) : f b ≤ f a := by
+    induction b with
+    | zero =>
+      have : a = 0 := by omega
+      subst a
+      exact le_rfl
+    | succ b ih =>
+      by_cases h : a = b + 1
+      · subst a
+        exact le_rfl
+      · exact (hf b hb).trans (ih (by omega) (by omega))
+  intro i hi
+  have hupper := hanti 0 i (Nat.zero_le i) hi
+  have hlower := hanti i (2 * t - 1) (by omega) (by omega)
+  have hlo := hlow 0 (by omega)
+  have hba := hbase 0 (by omega)
+  obtain ⟨h₁, h₂⟩ := hflag i hi
+  dsimp [f] at hupper hlower
+  omega
+
+/-- With odd meld size, uniform residue counts cannot saturate the draw-pair bound
+once residue one has two draw pairs. -/
+theorem FullWait.not_uniform_residues_at_odd_pair_bound {h : Multiset ℕ} {q s : ℕ}
+    (hw : FullWait k (1 + k * q) ranks h) (hk : 4 ≤ k) (hodd : k % 2 = 1)
+    (hq : 0 < q) (hs : s < k) (hpairs : k + 2 ≤ 2 * s) (hranks : k + 2 * s ≤ ranks) :
+    ¬ ∀ r : Fin k, residueSize k h r = k * q + s := by
+  intro huniform
+  have hkpos : 0 < k := by omega
+  let pairs := Finset.range (2 * s)
+  have hmem (i : ℕ) : i ∈ pairs ↔ i < 2 * s := Finset.mem_range
+  obtain ⟨anchor, low, base, hanchor, hflag, hlow, hbase, hpair⟩ :=
+    hw.exists_drawPair_high_counts hk (by omega) rfl hq hs pairs
+      (fun i hi => by have := (hmem i).mp hi; omega)
+      (fun i _ => by rw [huniform]; omega)
+  have hnext (i : ℕ) : i % k ≠ (i + 1) % k := by
+    have hmod := Nat.mod_lt i hkpos
+    rw [Nat.add_mod i 1 k, Nat.mod_eq_of_lt (show 1 < k by omega)]
+    by_cases h : i % k + 1 < k
+    · rw [Nat.mod_eq_of_lt h]
+      omega
+    · have heq : i % k + 1 = k := by omega
+      rw [heq, Nat.mod_self]
+      omega
+  have hcounts := tight_pair_counts low base
+    (fun i hi => hlow i ((hmem i).mpr hi))
+    (fun i hi => hbase i ((hmem i).mpr hi))
+    (fun i hi => by
+      rw [hflag i ((hmem i).mpr hi)]
+      split <;> omega)
+    (fun i hi => hpair ((hmem i).mpr (by omega)) ((hmem (i + 1)).mpr hi)
+      (by omega) (hnext i))
+  have hfirst : 1 ∈ pairs := (hmem 1).mpr (by omega)
+  have hsecond : k + 1 ∈ pairs := (hmem (k + 1)).mpr (by omega)
+  have hres : (k + 1) % k = 1 % k := by simp
+  obtain ⟨hanchor₁, hc₁⟩ := hanchor 1 hfirst
+  obtain ⟨hanchor₂, hc₂⟩ := hanchor (k + 1) hsecond
+  have heye : anchor 1 = anchor (k + 1) := by
+    by_contra hne
+    have htiles := count_add_count_le_residueSize h (rankResidue hkpos 1)
+      hanchor₁ (hanchor₂.trans hres) hne
+    rw [huniform] at htiles
+    have hqk := Nat.le_mul_of_pos_right k hq
+    omega
+  obtain ⟨hb₁, hl₁⟩ := hcounts 1 (by omega)
+  obtain ⟨hb₂, hl₂⟩ := hcounts (k + 1) (by omega)
+  have hbelow : ¬ 1 + k ≤ anchor 1 := by
+    intro h
+    have hf := hflag 1 hfirst
+    rw [ite_eq_left h] at hf
+    omega
+  have habove : k + 1 + k ≤ anchor (k + 1) := by
+    by_contra h
+    have hf := hflag (k + 1) hsecond
+    rw [ite_eq_right h] at hf
+    omega
+  omega
 
 /-- Counting both blocks of draw pairs gives a bound that remains sharp
 through `3k` ranks for even meld sizes. -/
@@ -918,7 +1007,7 @@ theorem FullWait.meld_count_lower_with_draw_pairs {h : Multiset ℕ} {q m : ℕ}
     have he := (Finset.mem_filter.mp ha).2
     rw [← hadd, he]
     omega
-  obtain ⟨low, base, hlow, hbase, hpair⟩ :=
+  obtain ⟨_, low, base, _, _, hlow, hbase, hpair⟩ :=
     hw.exists_drawPair_high_counts hk hkr rfl hq ht pairs hdraws hsize
   have hpos : 0 < t := by
     obtain ⟨a, ha⟩ := Finset.card_pos.mp (show 0 < pairs.card by omega)
