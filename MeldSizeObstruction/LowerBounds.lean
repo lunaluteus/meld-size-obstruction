@@ -975,6 +975,28 @@ theorem minimum_meld_count_even_beyond_twice {q : ℕ} (hk : 4 ≤ k) (hq : 0 < 
   · intro h m hw hcard
     exact hw.meld_count_lower_even_beyond_twice hk heven hranks hq hcard
 
+/-- The exact minimum at `2k+1` ranks for both parities of the meld size. -/
+theorem minimum_meld_count_one_past_twice {q : ℕ} (hk : 4 ≤ k) (hq : 0 < q) :
+    let minimum := q * (k - 1) + (k + 2) / 2
+    (∃ h : Multiset ℕ, FullWait k (1 + k * q) (2 * k + 1) h ∧
+      h.card + 1 = (1 + k * q) + k * minimum) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait k (1 + k * q) (2 * k + 1) h →
+      h.card + 1 = (1 + k * q) + k * m → minimum ≤ m := by
+  dsimp only
+  by_cases heven : k % 2 = 0
+  · have hhalf : (k + 2) / 2 = k / 2 + 1 := by omega
+    simpa only [hhalf, Nat.add_assoc] using minimum_meld_count_even_beyond_twice
+      (ranks := 2 * k + 1) hk hq heven (by omega) (by omega)
+  · have hodd : k % 2 = 1 := by omega
+    have hhalf : (k + 2) / 2 = (k + 1) / 2 := by omega
+    rw [hhalf]
+    constructor
+    · exact exists_fullWait_odd_one_past_twice q (by omega) hodd
+    · intro h m hw hcard
+      have hmin : min (2 * k + 1 - k) k = k := min_eq_right (by omega)
+      simpa only [hmin] using hw.meld_count_lower_with_repeated_residues
+        hk (by omega) hq hcard
+
 /-- With exactly `k` ranks, the lower bound on meld count is attained. -/
 theorem exists_fullWait_at_capacity (q : ℕ) (hk : 2 ≤ k) :
     ∃ h : Multiset ℕ, FullWait k (1 + k * q) k h ∧

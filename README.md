@@ -208,6 +208,15 @@ For even `k` and `R >= 2*k+1`, the lower bound is therefore
 `R = 2*k+1` and `R = 2*k+2`, as proved by
 `minimum_meld_count_even_beyond_twice`.
 
+For odd `k`, the same waiting hand used on `2*k` ranks also wins
+after drawing rank `2*k`. Its last sequence starts at rank `k`.
+Shifting that sequence one rank to the right lets the new draw
+complete the eye at rank `k`. The lower bound from the repeated
+classes is already sharp, so the minimum stays at
+`q*(k-1)+(k+1)/2`. The theorem `minimum_meld_count_one_past_twice`
+combines the two parities at `R = 2*k+1`. For example, five-tile
+melds with a six-tile eye need exactly seven melds on eleven ranks.
+
 ## Computational checks
 
 Python 3.10 or later; no third-party dependencies:

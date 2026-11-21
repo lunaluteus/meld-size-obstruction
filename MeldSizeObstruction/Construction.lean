@@ -128,6 +128,21 @@ theorem sequenceTransfer_left {k : ℕ} (hk : 0 < k) (starts : Finset ℕ) (a n 
 def eyeBlocks (k q : ℕ) (eyes : Finset ℕ) : Multiset ℕ :=
   ∑ e ∈ eyes, Multiset.replicate (k * q) e
 
+/-- Transferring a draw to a selected eye leaves a winning hand. -/
+theorem WinningHand.of_transfer (k q : ℕ) {eyes starts : Finset ℕ}
+    {draw eye : ℕ} {rest : Multiset ℕ} (he : eye ∈ eyes) (hm : Melds k rest)
+    (hmove : sequenceHand k starts + {draw} = {eye} + rest) :
+    WinningHand k (1 + k * q) (eyeBlocks k q eyes + sequenceHand k starts + {draw}) := by
+  classical
+  let others := eyeBlocks k q (eyes.erase eye)
+  refine ⟨eye, others + rest, ?_, ?_⟩
+  · exact (Melds.sum _ _ fun t _ => Melds.replicate_mul q t).add hm
+  · have hsplit : others + Multiset.replicate (k * q) eye = eyeBlocks k q eyes :=
+      Finset.sum_erase_add _ _ he
+    rw [add_assoc, hmove, ← hsplit]
+    simp only [Multiset.replicate_add, Multiset.replicate_one]
+    ac_rfl
+
 /-- Endpoint transfers turn eye blocks and a sequence family into a full wait. -/
 theorem fullWait_of_transfers (k q ranks : ℕ) (eyes starts : Finset ℕ)
     (heyes : ∀ e ∈ eyes, e < ranks)
@@ -147,14 +162,7 @@ theorem fullWait_of_transfers (k q ranks : ℕ) (eyes starts : Finset ℕ)
       exact ht.2.trans_le (hstarts s hs)
   · intro draw hdraw
     obtain ⟨e, he, rest, hm, hmove⟩ := htransfer draw hdraw
-    let others := eyeBlocks k q (eyes.erase e)
-    refine ⟨e, others + rest, ?_, ?_⟩
-    · exact (Melds.sum _ _ fun t _ => Melds.replicate_mul q t).add hm
-    · have hsplit : others + Multiset.replicate (k * q) e = eyeBlocks k q eyes :=
-        Finset.sum_erase_add _ _ he
-      rw [add_assoc, hmove, ← hsplit]
-      simp only [Multiset.replicate_add, Multiset.replicate_one]
-      ac_rfl
+    exact WinningHand.of_transfer k q he hm hmove
 
 /-- The total number of tiles in the construction is explicit. -/
 theorem card_eyeBlocks_add_sequenceHand (k q : ℕ) (eyes starts : Finset ℕ) :

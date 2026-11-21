@@ -168,4 +168,40 @@ theorem exists_fullWait_periodic {k ranks : ℕ} (q : ℕ) (hk : 2 ≤ k) (hkr :
       h.card + 1 = (1 + k * q) + k * periodicMeldCount k q ranks :=
   ⟨periodicHand k q ranks, fullWait_periodic q hk hkr, periodicHand_card q ranks hk⟩
 
+/-- For odd `k`, the waiting hand for `2k` ranks also wins on rank `2k`.
+That draw shifts the last sequence one rank to the right and uses eye rank `k`. -/
+theorem exists_fullWait_odd_one_past_twice {k : ℕ} (q : ℕ) (hk : 2 ≤ k) (hodd : k % 2 = 1) :
+    ∃ h : Multiset ℕ, FullWait k (1 + k * q) (2 * k + 1) h ∧
+      h.card + 1 = (1 + k * q) + k * (q * (k - 1) + (k + 1) / 2) := by
+  have hkpos : 0 < k := by omega
+  refine ⟨periodicHand k q (2 * k), ?_, ?_⟩
+  · have hbase := fullWait_periodic q hk (show k ≤ 2 * k by omega)
+    refine ⟨fun tile ht => (hbase.1 tile ht).trans (Nat.lt_succ_self _), fun draw hd => ?_⟩
+    by_cases hlt : draw < 2 * k
+    · exact hbase.2 draw hlt
+    have hdraw : draw = 2 * k := by omega
+    subst draw
+    have heye : k ∈ sparseEyes k (2 * k) := by
+      refine Finset.mem_image.mpr ⟨0, Finset.mem_range.mpr hkpos, ?_⟩
+      have hsmall : 2 * k - 1 - k < k := by omega
+      simpa [Nat.div_eq_of_lt hsmall] using
+        sparseEye_of_even_residue (k := k) (ranks := 2 * k) (draw := k) hkpos (by omega) (by simp)
+    have hstart : k ∈ periodicStarts k (2 * k) := by
+      have hpred : k - 1 + 1 = k := by omega
+      have hs : k - 1 + 1 ∈ periodicStarts k (2 * k) :=
+        periodic_start_mem (by omega) (by rw [Nat.mod_eq_of_lt (by omega : k - 1 < k)]; omega)
+      simpa only [hpred] using hs
+    obtain ⟨rest, hm, hmove⟩ := sequenceTransfer_right hkpos (periodicStarts k (2 * k)) k 1 (by
+      intro i hi
+      have hzero : i = 0 := by omega
+      subst i
+      simpa using hstart)
+    apply WinningHand.of_transfer k q heye hm
+    have htwice : k + 1 * k = 2 * k := by omega
+    simpa only [htwice] using hmove
+  · have hcount : periodicMeldCount k q (2 * k) = q * (k - 1) + (k + 1) / 2 := by
+      have hsub : 2 * k - k = k := by omega
+      simp [periodicMeldCount, hsub, Nat.div_self hkpos]
+    simpa only [hcount] using periodicHand_card q (2 * k) hk
+
 end MeldSizeObstruction
