@@ -419,29 +419,26 @@ theorem FullWait.meld_count_lower_of_three_extra_ranks {h : Multiset ℕ} {q m :
   nlinarith
 
 /-- The low and baseline counts together give a distinct value for each class. -/
-private theorem card_le_twice_of_alternate_high_counts {α : Type*} [LinearOrder α]
-    (s : Finset α) (t : ℕ) (low baseline : α → ℕ)
+private theorem card_le_of_alternate_high_counts {α : Type*} [LinearOrder α]
+    (s : Finset α) (t offset : ℕ) (low baseline : α → ℕ)
     (hlow : ∀ i ∈ s, low i < t) (hbase : ∀ i ∈ s, baseline i ≤ t)
     (hpair : ∀ {i j}, i ∈ s → j ∈ s → i < j →
-      baseline j ≤ low i ∧ low j < baseline i) :
-    s.card ≤ 2 * t := by
-  let f (i : ↥s) : Fin (2 * t) :=
-    ⟨low i.val + baseline i.val, by
+      baseline j ≤ low i ∧ low j < baseline i)
+    (hoffset : ∀ i ∈ s, offset ≤ low i + baseline i) :
+    s.card ≤ 2 * t - offset := by
+  let f (i : ↥s) : Fin (2 * t - offset) :=
+    ⟨low i.val + baseline i.val - offset, by
       have := hlow i.val i.property
       have := hbase i.val i.property
+      have := hoffset i.val i.property
       omega⟩
-  have hdecreasing {i j : ↥s} (hij : i.val < j.val) : f j < f i := by
+  have hdecreasing : StrictAnti f := by
+    intro i j hij
     obtain ⟨hl, hh⟩ := hpair i.property j.property hij
-    change low j.val + baseline j.val < low i.val + baseline i.val
+    have := hoffset j.val j.property
+    change low j.val + baseline j.val - offset < low i.val + baseline i.val - offset
     omega
-  have hf : Function.Injective f := by
-    intro i j heq
-    apply Subtype.ext
-    rcases lt_trichotomy i.val j.val with hij | hij | hij
-    · exact (ne_of_lt (hdecreasing hij) heq.symm).elim
-    · exact hij
-    · exact (ne_of_lt (hdecreasing hij) heq).elim
-  simpa using Fintype.card_le_of_injective f hf
+  simpa using Fintype.card_le_of_injective f hdecreasing.injective
 
 private def highResidueSize (k : ℕ) (h : Multiset ℕ) (r : Fin k) : ℕ :=
   residueSize k (h.filter (k ≤ ·)) r
@@ -570,6 +567,56 @@ private theorem Melds.highResidueSize_mod_antitone {k t : ℕ} {h : Multiset ℕ
   · simpa only [heq i, heq j] using hmono hij
   · simpa [heq i] using hle i
 
+/-- A tile with fewer than `k` copies must occur in a consecutive meld. -/
+private theorem Melds.exists_remove_consecutive {k : ℕ} {hand : Multiset ℕ}
+    (hm : Melds k hand) {tile : ℕ} (hmem : tile ∈ hand) (hcount : hand.count tile < k) :
+    ∃ start rest, tile ∈ Multiset.Ico start (start + k) ∧
+      hand = Multiset.Ico start (start + k) + rest ∧ Melds k rest := by
+  induction hm with
+  | empty => simp at hmem
+  | @identical rank rest hmrest ih =>
+    rcases Multiset.mem_add.mp hmem with hhere | hthere
+    · have heq := Multiset.eq_of_mem_replicate hhere
+      subst tile
+      simp only [Multiset.count_add, Multiset.count_replicate, ite_true] at hcount
+      omega
+    · have hlt : rest.count tile < k :=
+        (Multiset.count_le_of_le tile (by simp)).trans_lt hcount
+      obtain ⟨start, other, htile, hrest, hmother⟩ := ih hthere hlt
+      refine ⟨start, Multiset.replicate k rank + other, htile, ?_, hmother.identical rank⟩
+      rw [hrest]
+      ac_rfl
+  | @consecutive rank rest hmrest ih =>
+    rcases Multiset.mem_add.mp hmem with hhere | hthere
+    · exact ⟨rank, rest, hhere, rfl, hmrest⟩
+    · have hlt : rest.count tile < k :=
+        (Multiset.count_le_of_le tile (by simp)).trans_lt hcount
+      obtain ⟨start, other, htile, hrest, hmother⟩ := ih hthere hlt
+      refine ⟨start, Multiset.Ico rank (rank + k) + other, htile, ?_, hmother.consecutive rank⟩
+      rw [hrest]
+      ac_rfl
+
+/-- A tile of rank at least `2k` in a small class forces a high tile in
+every residue of the consecutive melds. -/
+private theorem Melds.highResidueSize_mod_pos_of_far_tile {k t : ℕ} {hand : Multiset ℕ}
+    (hm : Melds k hand) (r : Fin k) (hr : residueSize k hand r = t) (ht : t < k)
+    {tile : ℕ} (hres : tile % k = r.val) (hfar : 2 * k ≤ tile) (hmem : tile ∈ hand)
+    (s : Fin k) : 0 < highResidueSize k hand s % k := by
+  have hc := count_le_residueSize hand r tile hres
+  rw [hr] at hc
+  obtain ⟨start, rest, htile, hsplit, hmrest⟩ := hm.exists_remove_consecutive hmem (hc.trans_lt ht)
+  have hstart : s.val < start := by
+    have hbound := (Multiset.mem_Ico.mp htile).2
+    have := s.isLt
+    omega
+  rw [hsplit, residueSize_add, residueSize_consecutive] at hr
+  have hsmall : residueSize k rest r < k := by omega
+  have hhigh := (hmrest.highResidueSize_mod_antitone r rfl hsmall).2 s
+  rw [hsplit, highResidueSize_add, highResidueSize_consecutive, ite_eq_left hstart, Nat.add_mod]
+  have hk : 1 < k := by omega
+  rw [Nat.mod_eq_of_lt hk, Nat.mod_eq_of_lt (by omega : 1 + highResidueSize k rest s % k < k)]
+  omega
+
 /-- If the excesses sum to `k*s` and have common remainder `t`, at most
 `s-t` classes in any subset have excess above `t`. -/
 private theorem card_filter_le_of_residue_excess {k s t : ℕ} (hk : 0 < k)
@@ -611,13 +658,19 @@ private theorem residueSize_replicate {k : ℕ} (n tile : ℕ) (r : Fin k) :
     residueSize k (Multiset.replicate n tile) r = if tile % k = r.val then n else 0 := by
   simp [residueSize, Multiset.count_replicate]
 
-/-- The repeated classes with `p-1+t` waiting tiles have at most `2t` members. -/
-private theorem FullWait.card_le_twice_of_small_residues {h : Multiset ℕ} {q t : ℕ}
+/-- Repeated classes of size `p-1+t` have high counts determined by the draw
+and the existing eye in its class. -/
+private theorem FullWait.exists_high_counts_of_small_residues {h : Multiset ℕ} {q t : ℕ}
     (hw : FullWait k p ranks h) (hk : 4 ≤ k) (hkr : k ≤ ranks)
     (hpeq : p = 1 + k * q) (hq : 0 < q) (ht : t < k) (classes : Finset (Fin k))
     (hdraws : ∀ r ∈ classes, k + r.val < ranks)
     (hsize : ∀ r ∈ classes, residueSize k h r = p - 1 + t) :
-    classes.card ≤ 2 * t := by
+    ∃ low baseline : Fin k → ℕ,
+      (∀ r ∈ classes, low r < t) ∧ (∀ r ∈ classes, baseline r ≤ t) ∧
+      (∀ {i j}, i ∈ classes → j ∈ classes → i < j →
+        baseline j ≤ low i ∧ low j < baseline i) ∧
+      ∀ r ∈ classes, ∀ draw : ℕ, draw < ranks → draw % k = r.val →
+        2 * k ≤ draw → ∀ s ∈ classes, s ≠ r → 0 < baseline s := by
   classical
   have hpq : k ≤ k * q := Nat.le_mul_of_pos_right k hq
   have hp : 1 < p := by omega
@@ -679,7 +732,8 @@ private theorem FullWait.card_le_twice_of_small_residues {h : Multiset ℕ} {q t
   have hdraw (r : Fin k) (hr : r ∈ classes) (draw : ℕ)
       (hd : draw < ranks) (hdr : draw % k = r.val) :
       ∃ f : Fin k → ℕ, Antitone f ∧ f r = low r + (if k ≤ draw then 1 else 0) ∧
-        ∀ s ∈ classes, s ≠ r → f s = baseline s := by
+        (∀ s ∈ classes, s ≠ r → f s = baseline s) ∧
+        (2 * k ≤ draw → ∀ s, 0 < f s) := by
     obtain ⟨eye, rest, hm, hwin⟩ := hw.2 draw hd
     have heye : eye % k = r.val := (hw.eye_residue hk hkr draw eye hm hwin).trans hdr
     have hcount : p - 1 ≤ h.count eye := by
@@ -701,7 +755,7 @@ private theorem FullWait.card_le_twice_of_small_residues {h : Multiset ℕ} {q t
       rw [hsize r hr] at heq
       omega
     have hanti := (hm.highResidueSize_mod_antitone r hrest ht).1
-    refine ⟨fun s => highResidueSize k rest s % k, hanti, ?_, fun s hs hne => ?_⟩
+    refine ⟨fun s => highResidueSize k rest s % k, hanti, ?_, fun s hs hne => ?_, ?_⟩
     · change highResidueSize k rest r % k = _
       have heq := congrArg (fun hand => highResidueSize k hand r) hwin
       rw [← Multiset.replicate_one] at heq
@@ -720,39 +774,46 @@ private theorem FullWait.card_le_twice_of_small_residues {h : Multiset ℕ} {q t
       simp only [highResidueSize_add, highResidueSize_replicate, hdr, (hanchor r hr).1,
         hval, and_false, ite_false, add_zero, zero_add] at heq
       rw [← heq, hbase_mod s hs]
-  apply card_le_twice_of_alternate_high_counts classes t low baseline hlow hbase
-  intro i j hi hj hij
-  have hihigh : ¬k ≤ i.val := by have := i.isLt; omega
-  obtain ⟨f, hanti, hself, hother⟩ := hdraw i hi i.val (i.isLt.trans_le hkr) (hlowmod i)
-  obtain ⟨g, hanti', hself', hother'⟩ := hdraw j hj (k + j.val) (hdraws j hj) (hhighmod j)
-  have hf := hanti hij.le
-  rw [hself, hother j hj hij.ne.symm] at hf
-  have hg := hanti' hij.le
-  rw [hself', hother' i hi hij.ne] at hg
-  simp [hihigh] at hf
-  simp at hg
-  exact ⟨hf, hg⟩
+    · intro hfar s
+      have hmem : draw ∈ rest := by
+        apply Multiset.count_pos.mp
+        have heq := congrArg (fun hand : Multiset ℕ => hand.count draw) hwin
+        by_cases hsame : anchor r = draw
+        · have hc := (hanchor r hr).2
+          rw [hsame] at hc
+          simp [hsame] at heq
+          omega
+        · simp [Multiset.count_replicate, hsame] at heq
+          omega
+      exact hm.highResidueSize_mod_pos_of_far_tile r hrest ht hdr hfar hmem s
+  refine ⟨low, baseline, hlow, hbase, ?_, ?_⟩
+  · intro i j hi hj hij
+    have hihigh : ¬k ≤ i.val := by have := i.isLt; omega
+    obtain ⟨f, hanti, hself, hother, _⟩ := hdraw i hi i.val (i.isLt.trans_le hkr) (hlowmod i)
+    obtain ⟨g, hanti', hself', hother', _⟩ := hdraw j hj (k + j.val) (hdraws j hj) (hhighmod j)
+    have hf := hanti hij.le
+    rw [hself, hother j hj hij.ne.symm] at hf
+    have hg := hanti' hij.le
+    rw [hself', hother' i hi hij.ne] at hg
+    simp [hihigh] at hf
+    simp at hg
+    exact ⟨hf, hg⟩
+  · intro r hr draw hd hdr hfar s hs hne
+    obtain ⟨f, _, _, hother, hpos⟩ := hdraw r hr draw hd hdr
+    simpa only [hother s hs hne] using hpos hfar s
 
-/-- Each pair of repeated residue classes requires one meld above the capacity bound.
-A remaining unpaired class requires one more. -/
-theorem FullWait.meld_count_lower_with_repeated_residues {h : Multiset ℕ} {q m : ℕ}
+/-- The class excesses above eye capacity have a common remainder
+and sum to `k*s` when there are `s` additional melds. -/
+private theorem FullWait.exists_residue_excesses {h : Multiset ℕ} {q s : ℕ}
     (hw : FullWait k (1 + k * q) ranks h) (hk : 4 ≤ k) (hkr : k ≤ ranks)
-    (hq : 0 < q) (hcard : h.card + 1 = (1 + k * q) + k * m) :
-    q * (k - 1) + (min (ranks - k) k + 1) / 2 ≤ m := by
-  let d := min (ranks - k) k
-  change q * (k - 1) + (d + 1) / 2 ≤ m
-  by_contra! hfail
+    (hcard : h.card + 1 = (1 + k * q) + k * (q * (k - 1) + s)) :
+    ∃ (excess : Fin k → ℕ) (t : ℕ), (∀ r, excess r + k * q = residueSize k h r) ∧
+      (∑ r, excess r) = k * s ∧ t < k ∧ ∀ r, excess r % k = t := by
   have hkpos : 0 < k := by omega
-  have hd : d ≤ k := min_le_right _ _
-  have hdk : d ≤ ranks - k := min_le_left _ _
-  let s := m - q * (k - 1)
-  have hcap := hw.meld_count_lower hk hkr hcard
-  have hm : m = q * (k - 1) + s := by dsimp [s]; omega
-  have hs : 2 * s < d := by omega
   have hcard' : h.card = k * (k * q) + k * s := by
     have hpred : k - 1 + 1 = k := by omega
     have hprod := congrArg (fun x => k * q * x) hpred
-    rw [hm, Nat.mul_add] at hcard
+    rw [Nat.mul_add k (q * (k - 1)) s] at hcard
     nlinarith
   let excess (r : Fin k) := residueSize k h r - k * q
   have hadd (r : Fin k) : excess r + k * q = residueSize k h r := by
@@ -773,6 +834,26 @@ theorem FullWait.meld_count_lower_with_repeated_residues {h : Multiset ℕ} {q m
       apply add_right_cancel (b := ((k * q : ℕ) : ZMod k))
       simpa only [← Nat.cast_add, hadd] using hcongr
     simpa only [ZMod.val_natCast] using congrArg ZMod.val hcast
+  exact ⟨excess, t, hadd, htotal, ht, hmod⟩
+
+/-- Each pair of repeated residue classes requires one meld above the capacity bound.
+A remaining unpaired class requires one more. -/
+theorem FullWait.meld_count_lower_with_repeated_residues {h : Multiset ℕ} {q m : ℕ}
+    (hw : FullWait k (1 + k * q) ranks h) (hk : 4 ≤ k) (hkr : k ≤ ranks)
+    (hq : 0 < q) (hcard : h.card + 1 = (1 + k * q) + k * m) :
+    q * (k - 1) + (min (ranks - k) k + 1) / 2 ≤ m := by
+  let d := min (ranks - k) k
+  change q * (k - 1) + (d + 1) / 2 ≤ m
+  by_contra! hfail
+  have hkpos : 0 < k := by omega
+  have hd : d ≤ k := min_le_right _ _
+  have hdk : d ≤ ranks - k := min_le_left _ _
+  let s := m - q * (k - 1)
+  have hcap := hw.meld_count_lower hk hkr hcard
+  have hm : m = q * (k - 1) + s := by dsimp [s]; omega
+  have hs : 2 * s < d := by omega
+  rw [hm] at hcard
+  obtain ⟨excess, t, hadd, htotal, ht, hmod⟩ := hw.exists_residue_excesses hk hkr hcard
   let repeated := (Finset.univ : Finset (Fin d)).map (Fin.castLEEmb hd)
   have hrd : repeated.card = d := by simp [repeated]
   have hdraws (r : Fin k) (hr : r ∈ repeated) : k + r.val < ranks := by
@@ -784,14 +865,77 @@ theorem FullWait.meld_count_lower_with_repeated_residues {h : Multiset ℕ} {q m
   let good := repeated.filter (fun r => excess r = t)
   obtain ⟨hts, hbudget⟩ := card_filter_le_of_residue_excess hkpos excess hmod htotal repeated
   change repeated.card ≤ good.card + (s - t) at hbudget
+  have hgoodDraw (r : Fin k) (hr : r ∈ good) : k + r.val < ranks :=
+    hdraws r (Finset.mem_filter.mp hr).1
+  have hgoodSize (r : Fin k) (hr : r ∈ good) : residueSize k h r = 1 + k * q - 1 + t := by
+    have he := (Finset.mem_filter.mp hr).2
+    rw [← hadd r, he]
+    omega
+  obtain ⟨low, baseline, hlow, hbase, hpair, _⟩ :=
+    hw.exists_high_counts_of_small_residues hk hkr rfl hq ht good hgoodDraw hgoodSize
   have hgood : good.card ≤ 2 * t := by
-    apply hw.card_le_twice_of_small_residues hk hkr (q := q) rfl hq ht good
-    · intro r hr
-      exact hdraws r (Finset.mem_filter.mp hr).1
-    · intro r hr
-      have he := (Finset.mem_filter.mp hr).2
-      rw [← hadd r, he]
+    simpa using card_le_of_alternate_high_counts good t 0 low baseline hlow hbase hpair
+      (fun _ _ => Nat.zero_le _)
+  omega
+
+/-- For even `k`, the first rank beyond `2k` forces another meld. -/
+theorem FullWait.meld_count_lower_even_beyond_twice {h : Multiset ℕ} {q m : ℕ}
+    (hw : FullWait k (1 + k * q) ranks h) (hk : 4 ≤ k) (heven : k % 2 = 0)
+    (hranks : 2 * k < ranks) (hq : 0 < q)
+    (hcard : h.card + 1 = (1 + k * q) + k * m) :
+    q * (k - 1) + k / 2 + 1 ≤ m := by
+  by_contra! hfail
+  have hkr : k ≤ ranks := by omega
+  have hkpos : 0 < k := by omega
+  have hmin : min (ranks - k) k = k := min_eq_right (by omega)
+  have hbound := hw.meld_count_lower_with_repeated_residues hk hkr hq hcard
+  rw [hmin] at hbound
+  have hm : m = q * (k - 1) + k / 2 := by omega
+  rw [hm] at hcard
+  obtain ⟨excess, t, hadd, htotal, ht, hmod⟩ := hw.exists_residue_excesses hk hkr hcard
+  let good := (Finset.univ : Finset (Fin k)).filter (fun r => excess r = t)
+  obtain ⟨hts, hbudget⟩ :=
+    card_filter_le_of_residue_excess hkpos excess hmod htotal (Finset.univ : Finset (Fin k))
+  have hcount : k ≤ good.card + (k / 2 - t) := by
+    simpa only [Finset.card_univ, Fintype.card_fin] using hbudget
+  have hgoodSize (r : Fin k) (hr : r ∈ good) : residueSize k h r = 1 + k * q - 1 + t := by
+    have he := (Finset.mem_filter.mp hr).2
+    rw [← hadd r, he]
+    omega
+  have hdraws (r : Fin k) : k + r.val < ranks := by have := r.isLt; omega
+  obtain ⟨low, baseline, hlow, hbase, hpair, hfar⟩ :=
+    hw.exists_high_counts_of_small_residues hk hkr rfl hq ht good
+      (fun r _ => hdraws r) hgoodSize
+  have hgood : good.card ≤ 2 * t := by
+    simpa using card_le_of_alternate_high_counts good t 0 low baseline hlow hbase hpair
+      (fun _ _ => Nat.zero_le _)
+  have htk : 2 * t = k := by omega
+  have hcardGood : k ≤ good.card := by omega
+  have hfull : good = Finset.univ :=
+    Finset.eq_of_subset_of_card_le (Finset.subset_univ _) (by simpa using hcardGood)
+  let zero : Fin k := ⟨0, hkpos⟩
+  let last : Fin k := ⟨k - 1, by omega⟩
+  have hz : zero ∈ good := by simp [hfull]
+  have hl : last ∈ good := by simp [hfull]
+  have hne : last ≠ zero := by
+    intro he
+    have hval := congrArg Fin.val he
+    change k - 1 = 0 at hval
+    omega
+  have hlast : 0 < baseline last :=
+    hfar zero hz (2 * k) hranks (by simp [zero]) le_rfl last hl hne
+  have hoffset (i : Fin k) (hi : i ∈ good) : 1 ≤ low i + baseline i := by
+    by_cases he : i = last
+    · subst i
       omega
+    · have hilast : i < last := by
+        apply lt_of_le_of_ne _ he
+        change i.val ≤ k - 1
+        have := i.isLt
+        omega
+      have hilow := (hpair hi hl hilast).1
+      omega
+  have hstrict := card_le_of_alternate_high_counts good t 1 low baseline hlow hbase hpair hoffset
   omega
 
 /-- The periodic construction attains the exact minimum from `k` to `2k` ranks. -/
@@ -812,6 +956,24 @@ theorem minimum_meld_count_of_le_twice {q : ℕ} (hk : 4 ≤ k) (hq : 0 < q)
   · simpa only [hm] using exists_fullWait_periodic q (by omega) hkr
   · intro h m hw hcard
     simpa only [min_eq_left hl] using hw.meld_count_lower_with_repeated_residues hk hkr hq hcard
+
+/-- Even meld sizes attain the next minimum at both `2k+1` and `2k+2` ranks. -/
+theorem minimum_meld_count_even_beyond_twice {q : ℕ} (hk : 4 ≤ k) (hq : 0 < q)
+    (heven : k % 2 = 0) (hranks : 2 * k < ranks) (hupper : ranks ≤ 2 * k + 2) :
+    let minimum := q * (k - 1) + k / 2 + 1
+    (∃ h : Multiset ℕ, FullWait k (1 + k * q) ranks h ∧
+      h.card + 1 = (1 + k * q) + k * minimum) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait k (1 + k * q) ranks h →
+      h.card + 1 = (1 + k * q) + k * m → minimum ≤ m := by
+  dsimp only
+  have hkr : k ≤ ranks := by omega
+  have hm : periodicMeldCount k q ranks = q * (k - 1) + k / 2 + 1 := by
+    rw [periodicMeldCount_even k q ranks heven]
+    omega
+  constructor
+  · simpa only [hm] using exists_fullWait_periodic q (by omega) hkr
+  · intro h m hw hcard
+    exact hw.meld_count_lower_even_beyond_twice hk heven hranks hq hcard
 
 /-- With exactly `k` ranks, the lower bound on meld count is attained. -/
 theorem exists_fullWait_at_capacity (q : ℕ) (hk : 2 ≤ k) :

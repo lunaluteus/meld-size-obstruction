@@ -194,6 +194,20 @@ general bound as `FullWait.meld_count_lower_with_repeated_residues`.
 The theorem `minimum_meld_count_of_le_twice` also supplies the attaining
 hand for `k <= R <= 2*k`.
 
+For even `k`, the first extra rank beyond `2*k` forces one more meld.
+At the previous minimum, the excess budget and the count bound force
+all `k` classes to have the same excess `t = k/2`. Their strictly
+decreasing values `l_i+b_i` then fill exactly the integers from
+`k-1` down to 0. Drawing rank `2*k` leaves that tile in the melds,
+in a class with fewer than `k` tiles. It must be in a consecutive
+meld whose start is above `k`. This meld gives a high tile to the
+last class, contradicting its zero baseline count.
+
+For even `k` and `R >= 2*k+1`, the lower bound is therefore
+`q*(k-1)+k/2+1`. The periodic construction attains it at both
+`R = 2*k+1` and `R = 2*k+2`, as proved by
+`minimum_meld_count_even_beyond_twice`.
+
 ## Computational checks
 
 Python 3.10 or later; no third-party dependencies:
