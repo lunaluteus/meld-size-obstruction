@@ -418,15 +418,12 @@ theorem FullWait.meld_count_lower_of_three_extra_ranks {h : Multiset ℕ} {q m :
   have hprod := congrArg (fun x => k * q * x) hpred
   nlinarith
 
-/-- If the excesses sum to `k*s` and have common remainder `t`, at most
-`s-t` classes in any subset have excess above `t`. -/
-private theorem card_filter_le_of_residue_excess {k s t : ℕ} (hk : 0 < k)
+/-- After paying the common remainder in every residue, the quotients count
+how many additional blocks of `k` tiles remain. -/
+private theorem residue_excess_quotient_sum {k s t : ℕ} (hk : 0 < k)
     (excess : Fin k → ℕ) (hmod : ∀ i, excess i % k = t)
-    (htotal : (∑ i, excess i) = k * s) (classes : Finset (Fin k)) :
-    t ≤ s ∧ classes.card ≤ (classes.filter (fun i => excess i = t)).card + (s - t) := by
-  have hexcess (i : Fin k) : excess i = t + k * (excess i / k) := by
-    rw [← hmod i]
-    exact (Nat.mod_add_div (excess i) k).symm
+    (htotal : (∑ i, excess i) = k * s) :
+    t + ∑ i, excess i / k = s := by
   have hmul (u : Finset (Fin k)) :
       (∑ i ∈ u, k * (excess i / k)) = k * (∑ i ∈ u, excess i / k) := by
     induction u using Finset.induction_on with
@@ -434,26 +431,10 @@ private theorem card_filter_le_of_residue_excess {k s t : ℕ} (hk : 0 < k)
     | @insert i u hi ih => simp [hi, ih, Nat.mul_add]
   have hsum : (∑ i, excess i) = k * (t + ∑ i, excess i / k) := by
     calc
-      _ = ∑ i, (t + k * (excess i / k)) := Finset.sum_congr rfl (fun i _ => hexcess i)
+      _ = ∑ i, (t + k * (excess i / k)) := Finset.sum_congr rfl fun i _ => by
+        simpa only [hmod i] using (Nat.mod_add_div (excess i) k).symm
       _ = _ := by simp [Finset.sum_add_distrib, hmul, Nat.mul_add]
-  have hquot : t + ∑ i, excess i / k = s :=
-    Nat.eq_of_mul_eq_mul_left hk (hsum.symm.trans htotal)
-  let good := classes.filter (fun i => excess i = t)
-  have hbad : (classes \ good).card ≤ ∑ i, excess i / k := by
-    calc
-      _ = ∑ _ ∈ classes \ good, (1 : ℕ) := by simp
-      _ ≤ ∑ i ∈ classes \ good, excess i / k := by
-        refine Finset.sum_le_sum (fun i hi => ?_)
-        obtain ⟨hmem, hnot⟩ := Finset.mem_sdiff.mp hi
-        by_cases hzero : excess i / k = 0
-        · have heq : excess i = t := by simpa [hzero] using hexcess i
-          exact (hnot (Finset.mem_filter.mpr ⟨hmem, heq⟩)).elim
-        · exact Nat.one_le_iff_ne_zero.mpr hzero
-      _ ≤ _ := Finset.sum_le_sum_of_subset (Finset.subset_univ _)
-  have hparts := Finset.card_sdiff_add_card_eq_card (Finset.filter_subset (fun i => excess i = t) classes)
-  change (classes \ good).card + good.card = classes.card at hparts
-  change t ≤ s ∧ classes.card ≤ good.card + (s - t)
-  omega
+  exact Nat.eq_of_mul_eq_mul_left hk (hsum.symm.trans htotal)
 
 private theorem residueSize_replicate {k : ℕ} (n tile : ℕ) (r : Fin k) :
     residueSize k (Multiset.replicate n tile) r = if tile % k = r.val then n else 0 := by
@@ -689,13 +670,16 @@ private theorem card_le_twice_of_drawPair_counts {k t L : ℕ} (hk : 0 < k) (ht 
     simpa using Fintype.card_le_of_injective f hdecreasing.injective
   omega
 
-/-- Each exceptional residue can remove at most two pairs in the first two
-blocks of draw-pair indices. -/
+/-- Each exceptional residue removes at most one pair from each block.
+At equality each exceptional residue removes two pairs and adds `k` tiles
+beyond the common remainder. -/
 private theorem card_filter_le_of_drawPair_excess {k s t L : ℕ} (hk : 0 < k) (hL : L ≤ 2 * k)
     (excess : Fin k → ℕ) (hmod : ∀ i, excess i % k = t)
     (htotal : (∑ i, excess i) = k * s) :
-    t ≤ s ∧ L ≤ ((Finset.range L).filter (fun a => excess (rankResidue hk a) = t)).card +
-      2 * (s - t) := by
+    let good := (Finset.range L).filter (fun a => excess (rankResidue hk a) = t)
+    t ≤ s ∧ L ≤ good.card + 2 * (s - t) ∧
+      (L = 2 * s → good.card ≤ 2 * t → good.card = 2 * t ∧
+        ∀ i, excess i ≠ t → excess i = t + k ∧ i.val + k < L) := by
   let all := Finset.range L
   let good := all.filter (fun a => excess (rankResidue hk a) = t)
   let bad := all \ good
@@ -704,23 +688,41 @@ private theorem card_filter_le_of_drawPair_excess {k s t L : ℕ} (hk : 0 < k) (
     intro he
     exact (Finset.mem_sdiff.mp ha).2
       (Finset.mem_filter.mpr ⟨(Finset.mem_sdiff.mp ha).1, he⟩)
-  have hcap (u : Finset ℕ) (hu : u ⊆ bad) (hinj : Set.InjOn (rankResidue hk) ↑u) :
-      u.card ≤ s - t := by
-    let image := u.image (rankResidue hk)
-    have hempty : image.filter (fun r => excess r = t) = ∅ := by
-      apply Finset.eq_empty_iff_forall_notMem.mpr
-      intro r hr
-      obtain ⟨him, hgood⟩ := Finset.mem_filter.mp hr
-      obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp him
-      exact hnot_good a (hu ha) hgood
-    have hbudget := (card_filter_le_of_residue_excess hk excess hmod htotal image).2
-    rw [hempty, Finset.card_empty, zero_add] at hbudget
-    have himage : image.card = u.card := Finset.card_image_of_injOn hinj
+  let exceptional := Finset.univ.filter (fun i => excess i ≠ t)
+  have ht : t < k := hmod ⟨0, hk⟩ ▸ Nat.mod_lt _ hk
+  have hexcess (i : Fin k) : excess i = t + k * (excess i / k) := by
+    simpa only [hmod i] using (Nat.mod_add_div (excess i) k).symm
+  have hpositive (i : Fin k) (hi : i ∈ exceptional) : 1 ≤ excess i / k := by
+    apply Nat.one_le_iff_ne_zero.mpr
+    intro hzero
+    exact (Finset.mem_filter.mp hi).2 (by simpa [hzero] using hexcess i)
+  have hquot := residue_excess_quotient_sum hk excess hmod htotal
+  have hsum : (∑ i ∈ exceptional, excess i / k) = s - t := by
+    have hsame : (∑ i ∈ exceptional, excess i / k) = ∑ i, excess i / k := by
+      rw [Finset.sum_filter]
+      apply Finset.sum_congr rfl
+      intro i _
+      split_ifs with hi
+      · rfl
+      · have he : excess i = t := not_ne_iff.mp hi
+        rw [he, Nat.div_eq_of_lt ht]
     omega
+  have hbudget : exceptional.card ≤ s - t := by
+    calc
+      _ = ∑ _ ∈ exceptional, (1 : ℕ) := by simp
+      _ ≤ ∑ i ∈ exceptional, excess i / k := Finset.sum_le_sum hpositive
+      _ = _ := hsum
+  have hsubset (u : Finset ℕ) (hu : u ⊆ bad) : u.image (rankResidue hk) ⊆ exceptional := by
+    intro i hi
+    obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hi
+    exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, hnot_good a (hu ha)⟩
+  have hcap (u : Finset ℕ) (hu : u ⊆ bad) (hinj : Set.InjOn (rankResidue hk) ↑u) :
+      u.card ≤ exceptional.card := by
+    rw [← Finset.card_image_of_injOn hinj]
+    exact Finset.card_le_card (hsubset u hu)
   let lower := bad.filter (fun a => a < k)
   let upper := bad.filter (fun a => k ≤ a)
-  have hlower : lower.card ≤ s - t := by
-    apply hcap lower (Finset.filter_subset _ _)
+  have hlower_inj : Set.InjOn (rankResidue hk) ↑lower := by
     intro a ha b hb he
     have hka := (Finset.mem_filter.mp ha).2
     have hkb := (Finset.mem_filter.mp hb).2
@@ -734,8 +736,7 @@ private theorem card_filter_le_of_drawPair_excess {k s t L : ℕ} (hk : 0 < k) (
     calc
       a % k = (k + (a - k)) % k := congrArg (· % k) (by omega)
       _ = a - k := by simp [Nat.mod_eq_of_lt ha']
-  have hupper : upper.card ≤ s - t := by
-    apply hcap upper (Finset.filter_subset _ _)
+  have hupper_inj : Set.InjOn (rankResidue hk) ↑upper := by
     intro a ha b hb he
     have hka := (Finset.mem_filter.mp ha).2
     have hkb := (Finset.mem_filter.mp hb).2
@@ -749,8 +750,32 @@ private theorem card_filter_le_of_drawPair_excess {k s t L : ℕ} (hk : 0 < k) (
   have hsplit : bad.card + good.card = L := by
     simpa only [bad, good, all, Finset.card_range] using
       Finset.card_sdiff_add_card_eq_card (Finset.filter_subset (fun a => excess (rankResidue hk a) = t) all)
-  have hts := (card_filter_le_of_residue_excess hk excess hmod htotal Finset.univ).1
-  change t ≤ s ∧ L ≤ good.card + 2 * (s - t)
+  have hlower := hcap lower (Finset.filter_subset _ _) hlower_inj
+  have hupper := hcap upper (Finset.filter_subset _ _) hupper_inj
+  refine ⟨by omega, ?_, fun hL' hgood => ?_⟩
+  · change L ≤ good.card + 2 * (s - t)
+    omega
+  change good.card ≤ 2 * t at hgood
+  have heq : exceptional.card = s - t := by omega
+  have hquot_one (i : Fin k) (hi : i ∈ exceptional) : excess i / k = 1 := by
+    have hsum_eq : (∑ _ ∈ exceptional, (1 : ℕ)) = ∑ i ∈ exceptional, excess i / k := by
+      simp [heq, hsum]
+    exact ((Finset.sum_eq_sum_iff_of_le hpositive).mp hsum_eq i hi).symm
+  have himage : upper.image (rankResidue hk) = exceptional := by
+    apply Finset.eq_of_subset_of_card_le (hsubset upper (Finset.filter_subset _ _))
+    rw [Finset.card_image_of_injOn hupper_inj]
+    omega
+  refine ⟨?_, fun i hi => ?_⟩
+  · change good.card = 2 * t
+    omega
+  have hmem : i ∈ exceptional := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hi⟩
+  refine ⟨by rw [hexcess i, hquot_one i hmem, Nat.mul_one], ?_⟩
+  rw [← himage] at hmem
+  obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hmem
+  have ha' := Finset.mem_filter.mp ha
+  have hab := hbound a ha'.1
+  change a % k + k < L
+  rw [hmod_upper ha]
   omega
 
 /-- For small classes, a low or high draw fixes the high count of its pair.
@@ -976,6 +1001,74 @@ theorem FullWait.not_uniform_residues_at_odd_pair_bound {h : Multiset ℕ} {q s 
     omega
   omega
 
+private theorem FullWait.card_draw_pairs_of_small_residues_le {h : Multiset ℕ} {q t L : ℕ}
+    (hw : FullWait k (1 + k * q) ranks h) (hk : 4 ≤ k) (hkr : k ≤ ranks) (hq : 0 < q)
+    (ht : t < k) (hL : L ≤ 2 * k) (hLr : k + L ≤ ranks)
+    (excess : Fin k → ℕ) (hadd : ∀ r, excess r + k * q = residueSize k h r) :
+    ((Finset.range L).filter (fun a => excess (rankResidue (by omega : 0 < k) a) = t)).card ≤
+      2 * t := by
+  have hkpos : 0 < k := by omega
+  let pairs := (Finset.range L).filter (fun a => excess (rankResidue hkpos a) = t)
+  have hbound (a : ℕ) (ha : a ∈ pairs) : a < L :=
+    Finset.mem_range.mp (Finset.mem_filter.mp ha).1
+  have hdraws (a : ℕ) (ha : a ∈ pairs) : a + k < ranks := by
+    have := hbound a ha
+    omega
+  have hsize (a : ℕ) (ha : a ∈ pairs) :
+      residueSize k h (rankResidue hkpos a) = 1 + k * q - 1 + t := by
+    have he := (Finset.mem_filter.mp ha).2
+    rw [← hadd, he]
+    omega
+  obtain ⟨_, low, base, _, _, hlow, hbase, hpair⟩ :=
+    hw.exists_drawPair_high_counts hk hkr rfl hq ht pairs hdraws hsize
+  by_cases hpos : 0 < t
+  · have hclosed {a b : ℕ} (ha : a ∈ pairs) (hb : b < L) (he : a % k = b % k) : b ∈ pairs :=
+      Finset.mem_filter.mpr ⟨Finset.mem_range.mpr hb, by
+        rw [← (Fin.ext he : rankResidue hkpos a = rankResidue hkpos b)]
+        exact (Finset.mem_filter.mp ha).2⟩
+    exact card_le_twice_of_drawPair_counts hkpos hpos hL pairs hbound hclosed
+      low base hlow hbase hpair
+  · have hempty : pairs = ∅ := by
+      apply Finset.eq_empty_iff_forall_notMem.mpr
+      intro a ha
+      exact hpos ((Nat.zero_le _).trans_lt (hlow a ha))
+    change pairs.card ≤ 2 * t
+    simp [hempty]
+
+/-- At the draw-pair lower bound, every residue has the common excess or one extra
+meld's worth of tiles. Residues of the latter size must contain two draw pairs. -/
+theorem FullWait.residue_size_at_draw_pair_bound {h : Multiset ℕ} {q s : ℕ}
+    (hw : FullWait k (1 + k * q) ranks h) (hk : 4 ≤ k) (hq : 0 < q)
+    (hs : s ≤ k) (hranks : k + 2 * s ≤ ranks)
+    (hcard : h.card + 1 = (1 + k * q) + k * (q * (k - 1) + s)) :
+    ∃ t < k, t ≤ s ∧
+      ((Finset.range (2 * s)).filter (fun a =>
+        residueSize k h (rankResidue (by omega : 0 < k) a) = k * q + t)).card = 2 * t ∧
+      ∀ i : Fin k, residueSize k h i = k * q + t ∨
+        residueSize k h i = k * q + t + k ∧ i.val + k < 2 * s := by
+  have hkpos : 0 < k := by omega
+  have hkr : k ≤ ranks := by omega
+  have hL : 2 * s ≤ 2 * k := by omega
+  obtain ⟨excess, t, hadd, htotal, ht, hmod⟩ := hw.exists_residue_excesses hk hkr hcard
+  obtain ⟨hts, _, htight⟩ := card_filter_le_of_drawPair_excess hkpos hL excess hmod htotal
+  have hcount := hw.card_draw_pairs_of_small_residues_le hk hkr hq ht hL hranks excess hadd
+  obtain ⟨hgood, hbad⟩ := htight rfl hcount
+  have hfilter :
+      ((Finset.range (2 * s)).filter (fun a =>
+        residueSize k h (rankResidue hkpos a) = k * q + t)) =
+      ((Finset.range (2 * s)).filter (fun a => excess (rankResidue hkpos a) = t)) := by
+    ext a
+    simp only [Finset.mem_filter, ← hadd, Nat.add_comm (k * q) t, Nat.add_right_cancel_iff]
+  refine ⟨t, ht, hts, hfilter ▸ hgood, fun i => ?_⟩
+  by_cases hi : excess i = t
+  · left
+    rw [← hadd, hi, Nat.add_comm]
+  · obtain ⟨he, hb⟩ := hbad i hi
+    right
+    refine ⟨?_, hb⟩
+    rw [← hadd, he]
+    omega
+
 /-- Counting both blocks of draw pairs gives a bound that remains sharp
 through `3k` ranks for even meld sizes. -/
 theorem FullWait.meld_count_lower_with_draw_pairs {h : Multiset ℕ} {q m : ℕ}
@@ -994,30 +1087,8 @@ theorem FullWait.meld_count_lower_with_draw_pairs {h : Multiset ℕ} {q m : ℕ}
   have hs : 2 * s < L := by omega
   rw [hm] at hcard
   obtain ⟨excess, t, hadd, htotal, ht, hmod⟩ := hw.exists_residue_excesses hk hkr hcard
-  let pairs := (Finset.range L).filter (fun a => excess (rankResidue hkpos a) = t)
-  obtain ⟨hts, hbudget⟩ := card_filter_le_of_drawPair_excess hkpos hL excess hmod htotal
-  change L ≤ pairs.card + 2 * (s - t) at hbudget
-  have hbound (a : ℕ) (ha : a ∈ pairs) : a < L :=
-    Finset.mem_range.mp (Finset.mem_filter.mp ha).1
-  have hdraws (a : ℕ) (ha : a ∈ pairs) : a + k < ranks := by
-    have := hbound a ha
-    omega
-  have hsize (a : ℕ) (ha : a ∈ pairs) :
-      residueSize k h (rankResidue hkpos a) = 1 + k * q - 1 + t := by
-    have he := (Finset.mem_filter.mp ha).2
-    rw [← hadd, he]
-    omega
-  obtain ⟨_, low, base, _, _, hlow, hbase, hpair⟩ :=
-    hw.exists_drawPair_high_counts hk hkr rfl hq ht pairs hdraws hsize
-  have hpos : 0 < t := by
-    obtain ⟨a, ha⟩ := Finset.card_pos.mp (show 0 < pairs.card by omega)
-    exact (Nat.zero_le _).trans_lt (hlow a ha)
-  have hclosed {a b : ℕ} (ha : a ∈ pairs) (hb : b < L) (he : a % k = b % k) : b ∈ pairs :=
-    Finset.mem_filter.mpr ⟨Finset.mem_range.mpr hb, by
-      rw [← (Fin.ext he : rankResidue hkpos a = rankResidue hkpos b)]
-      exact (Finset.mem_filter.mp ha).2⟩
-  have hcount := card_le_twice_of_drawPair_counts hkpos hpos hL pairs hbound hclosed
-    low base hlow hbase hpair
+  obtain ⟨hts, hbudget, _⟩ := card_filter_le_of_drawPair_excess hkpos hL excess hmod htotal
+  have hcount := hw.card_draw_pairs_of_small_residues_le hk hkr hq ht hL (by omega) excess hadd
   omega
 
 /-- For even meld sizes, the periodic construction attains the minimum
