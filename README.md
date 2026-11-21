@@ -146,32 +146,43 @@ unrestricted; this is not a result about live waits under a four-copy rule.
 ### Lower bounds and exact minima for short suits
 
 For `k >= 4`, `R >= k`, and `p = 1+k*q`, every full-sided wait needs at
-least `q*(k-1)` winning melds. If `q > 0` and `R > k`, it needs at least
-one more. Together with the periodic construction, this determines the
-exact minimum for the first three suit lengths:
+least `q*(k-1)` winning melds. For `q > 0`, this lower bound increases by
+one at `R = k+1` and by a second at `R = k+3`. The periodic construction
+attains these bounds for the first five suit lengths.
 
 | Number of ranks | Minimum winning meld count, for `q > 0` |
 | --- | --- |
 | `R = k` | `q*(k-1)` |
 | `R = k+1` or `R = k+2` | `q*(k-1)+1` |
+| `R = k+3` or `R = k+4` | `q*(k-1)+2` |
 
-The argument uses actual tile counts. The residue obstruction forces every
-winning eye into the draw's residue class, so each class must contain at
-least `p-1` waiting tiles. Summing gives `|H| >= k*(p-1)`. If equality held
-with more than `k` drawable ranks, drawing ranks `0` and `k` would require
-all `p-1` tiles of their common class to be concentrated at each of these
-two distinct ranks. This contradicts `p>1` and makes the bound strict.
-The hand-size equation then gives the extra meld.
+The residue obstruction forces every winning eye into the draw's residue
+class, so each class must contain at least `p-1` waiting tiles. A class
+with two available draws needs at least `p` tiles. At total `p-1`, each
+of the two draws would have to complete its own eye, requiring `p-1`
+waiting tiles of each rank. This proves the first increase.
 
-For example, the six-rank four-tile-meld construction with a five-tile eye
-uses four winning melds, and four is now proved to be the minimum. No exact
-minimum is claimed here for `R > k+2`. For `q=0`, the empty-hand minimum
-is zero for every suit length, as noted above.
+With one meld above the capacity bound the waiting hand has `kp` tiles.
+Its residue totals are congruent modulo `k`, and their excesses over
+`p-1` sum to `k`. With two repeated residues these excesses are all one.
+A repeated residue of size `p` concentrates its tiles at one rank.
+Otherwise two distinct draws would each have to complete their own eye,
+requiring `2(p-1) > p` tiles. After drawing in such a residue, the eye
+leaves just the drawn tile in that class. The meld decomposition must
+therefore contain one consecutive meld, which includes the drawn tile.
 
-[`LowerBounds.lean`](MeldSizeObstruction/LowerBounds.lean) proves
-`FullWait.eye_residue`, the class-capacity and meld-count bounds, and
-`minimum_meld_count_short`. The last theorem includes both an attaining
-hand and a lower bound for every full-sided wait with the same parameters.
+When `R >= k+3`, residues `0`, `1`, and `2` repeat. The sequence for
+draw `0` contains rank `1`, forcing the residue-one tiles of the waiting
+hand to be at rank `1`. The sequence for draw `k+2` would then need to
+contain both ranks `1` and `k+2`, an impossibility for a `k`-tile
+sequence. This proves the second increase.
+
+For `q=0`, the empty-hand minimum is zero for every suit length.
+
+[`LowerBounds.lean`](MeldSizeObstruction/LowerBounds.lean) proves the
+class-capacity and meld-count bounds. The theorems
+`minimum_meld_count_short` and `minimum_meld_count_three_or_four_extra`
+give both a lower bound and an attaining hand.
 
 ## Computational checks
 

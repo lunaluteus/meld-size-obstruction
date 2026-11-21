@@ -18,6 +18,8 @@ import Mathlib.Tactic.IntervalCases
 #print axioms MeldSizeObstruction.FullWait.meld_count_lower
 #print axioms MeldSizeObstruction.FullWait.meld_count_strict_lower
 #print axioms MeldSizeObstruction.minimum_meld_count_short
+#print axioms MeldSizeObstruction.FullWait.meld_count_lower_of_three_extra_ranks
+#print axioms MeldSizeObstruction.minimum_meld_count_three_or_four_extra
 
 open MeldSizeObstruction
 
@@ -117,6 +119,12 @@ example (k q : ℕ) (hk : 4 ≤ k) (hq : 0 < q) :
       h.card + 1 = (1 + k * q) + k * m → q * (k - 1) ≤ m := by
   simpa using minimum_meld_count_short (k := k) (q := q) (ranks := k)
     hk hq le_rfl (by omega)
+
+/-- Four extra ranks attain the sharper bound even when the suit has length `2*k`. -/
+example : (∃ h : Multiset ℕ, FullWait 4 5 8 h ∧ h.card + 1 = 5 + 4 * 5) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait 4 5 8 h → h.card + 1 = 5 + 4 * m → 5 ≤ m :=
+  minimum_meld_count_three_or_four_extra (k := 4) (q := 1) (extra := 4)
+    (by decide) (by decide) (by decide) (by decide)
 
 /-- With only one drawable residue, the eye obstruction no longer applies. -/
 example : FullWait 4 2 1 (Multiset.replicate 5 0) := by
