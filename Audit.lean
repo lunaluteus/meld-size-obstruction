@@ -20,6 +20,8 @@ import Mathlib.Tactic.IntervalCases
 #print axioms MeldSizeObstruction.minimum_meld_count_short
 #print axioms MeldSizeObstruction.FullWait.meld_count_lower_of_three_extra_ranks
 #print axioms MeldSizeObstruction.minimum_meld_count_three_or_four_extra
+#print axioms MeldSizeObstruction.FullWait.meld_count_lower_with_repeated_residues
+#print axioms MeldSizeObstruction.minimum_meld_count_of_le_twice
 
 open MeldSizeObstruction
 
@@ -124,6 +126,12 @@ example (k q : ℕ) (hk : 4 ≤ k) (hq : 0 < q) :
 example : (∃ h : Multiset ℕ, FullWait 4 5 8 h ∧ h.card + 1 = 5 + 4 * 5) ∧
     ∀ (h : Multiset ℕ) (m : ℕ), FullWait 4 5 8 h → h.card + 1 = 5 + 4 * m → 5 ≤ m :=
   minimum_meld_count_three_or_four_extra (k := 4) (q := 1) (extra := 4)
+    (by decide) (by decide) (by decide) (by decide)
+
+/-- Seven-tile melds and an eight-tile eye have an exact minimum of ten melds on 14 ranks. -/
+example : (∃ h : Multiset ℕ, FullWait 7 8 14 h ∧ h.card + 1 = 8 + 7 * 10) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait 7 8 14 h → h.card + 1 = 8 + 7 * m → 10 ≤ m :=
+  minimum_meld_count_of_le_twice (k := 7) (q := 1) (ranks := 14)
     (by decide) (by decide) (by decide) (by decide)
 
 /-- With only one drawable residue, the eye obstruction no longer applies. -/

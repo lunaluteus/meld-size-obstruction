@@ -145,44 +145,54 @@ unrestricted; this is not a result about live waits under a four-copy rule.
 
 ### Lower bounds and exact minima for short suits
 
-For `k >= 4`, `R >= k`, and `p = 1+k*q`, every full-sided wait needs at
-least `q*(k-1)` winning melds. For `q > 0`, this lower bound increases by
-one at `R = k+1` and by a second at `R = k+3`. The periodic construction
-attains these bounds for the first five suit lengths.
+For `k >= 4`, `R >= k`, and `p = 1+k*q` with `q > 0`, let
+`d = min(R-k, k)` be the number of residue classes with at least two
+drawable ranks. Every full-sided wait needs at least
 
-| Number of ranks | Minimum winning meld count, for `q > 0` |
-| --- | --- |
-| `R = k` | `q*(k-1)` |
-| `R = k+1` or `R = k+2` | `q*(k-1)+1` |
-| `R = k+3` or `R = k+4` | `q*(k-1)+2` |
+```math
+q(k-1) + \left\lceil\frac{d}{2}\right\rceil
+```
 
-The residue obstruction forces every winning eye into the draw's residue
-class, so each class must contain at least `p-1` waiting tiles. A class
-with two available draws needs at least `p` tiles. At total `p-1`, each
-of the two draws would have to complete its own eye, requiring `p-1`
-waiting tiles of each rank. This proves the first increase.
+winning melds. The periodic construction attains the bound for every
+`k <= R <= 2*k`. For example, seven-tile melds and an eight-tile eye on
+fourteen ranks require exactly ten melds. With `q=0`, the empty hand
+attains the minimum of zero for every suit length.
 
-With one meld above the capacity bound the waiting hand has `kp` tiles.
-Its residue totals are congruent modulo `k`, and their excesses over
-`p-1` sum to `k`. With two repeated residues these excesses are all one.
-A repeated residue of size `p` concentrates its tiles at one rank.
-Otherwise two distinct draws would each have to complete their own eye,
-requiring `2(p-1) > p` tiles. After drawing in such a residue, the eye
-leaves just the drawn tile in that class. The meld decomposition must
-therefore contain one consecutive meld, which includes the drawn tile.
+The winning eye uses the draw's residue, so every class needs at least
+`p-1` waiting tiles. With `s` melds above the resulting capacity bound
+`q*(k-1)`, the class excesses over `p-1` sum to `k*s`. If their
+common remainder is `t` modulo `k`, then `t <= s`, and at most `s-t`
+classes have excess greater than `t`.
 
-When `R >= k+3`, residues `0`, `1`, and `2` repeat. The sequence for
-draw `0` contains rank `1`, forcing the residue-one tiles of the waiting
-hand to be at rank `1`. The sequence for draw `k+2` would then need to
-contain both ranks `1` and `k+2`, an impossibility for a `k`-tile
-sequence. This proves the second increase.
+Suppose `2*s < d`. More than `2*t` repeated classes then have exactly
+`p-1+t` tiles. A repeated class must already contain a whole eye.
+Otherwise two distinct draws would each need to complete their own eye,
+requiring `2*(p-1)` waiting tiles in the class. This already rules out
+`t=0`. With fewer than `2*(p-1)` tiles, the existing eye is also the only
+possible eye in that class after a draw. Removing it leaves `t < k`
+tiles in the draw class.
+Therefore the winning decomposition uses exactly `t` consecutive melds.
 
-For `q=0`, the empty-hand minimum is zero for every suit length.
+Call ranks at least `k` high. A consecutive meld contributes a high
+tile in an initial segment of the residue classes, so the high counts
+from the consecutive melds decrease weakly across residues. In a
+repeated class `i` with excess `t`, let `l_i` count the high tiles
+left after removing its eye. A low draw in class `i` leaves `l_i`
+high tiles and a high draw leaves `l_i+1`. A draw in a different
+class leaves a baseline count `b_i` equal to the number of high
+tiles after removing `p-1` copies of the eye rank. In all three
+cases, reducing the high count modulo `k` discards any identical
+melds.
+
+For `i < j`, a low draw in `i` gives `b_j <= l_i`, and a high
+draw in `j` gives `l_j+1 <= b_i`. Thus `l_i+b_i` strictly decreases
+and lies between 0 and `2*t-1`, so there can be at most `2*t` such
+classes. This contradicts the count from the excesses.
 
 [`LowerBounds.lean`](MeldSizeObstruction/LowerBounds.lean) proves the
-class-capacity and meld-count bounds. The theorems
-`minimum_meld_count_short` and `minimum_meld_count_three_or_four_extra`
-give both a lower bound and an attaining hand.
+general bound as `FullWait.meld_count_lower_with_repeated_residues`.
+The theorem `minimum_meld_count_of_le_twice` also supplies the attaining
+hand for `k <= R <= 2*k`.
 
 ## Computational checks
 
