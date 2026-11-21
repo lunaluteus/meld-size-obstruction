@@ -146,17 +146,17 @@ unrestricted; this is not a result about live waits under a four-copy rule.
 ### Lower bounds and exact minima for short suits
 
 For `k >= 4`, `R >= k`, and `p = 1+k*q` with `q > 0`, let
-`d = min(R-k, k)` be the number of residue classes with at least two
-drawable ranks. Every full-sided wait needs at least
+`L = min(R-k, 2*k)`. Every full-sided wait needs at least
 
 ```math
-q(k-1) + \left\lceil\frac{d}{2}\right\rceil
+q(k-1) + \left\lceil\frac{L}{2}\right\rceil
 ```
 
-winning melds. The periodic construction attains the bound for every
-`k <= R <= 2*k`. For example, seven-tile melds and an eight-tile eye on
-fourteen ranks require exactly ten melds. With `q=0`, the empty hand
-attains the minimum of zero for every suit length.
+winning melds. The periodic construction attains this bound for
+`k <= R <= 2*k`, and for even `k` it attains the bound through
+`R = 3*k`. For example, four-tile melds and a five-tile eye on twelve
+ranks require exactly seven melds. With `q=0`, the empty hand has the
+minimum of zero for every suit length.
 
 The winning eye uses the draw's residue, so every class needs at least
 `p-1` waiting tiles. With `s` melds above the resulting capacity bound
@@ -164,49 +164,36 @@ The winning eye uses the draw's residue, so every class needs at least
 common remainder is `t` modulo `k`, then `t <= s`, and at most `s-t`
 classes have excess greater than `t`.
 
-Suppose `2*s < d`. More than `2*t` repeated classes then have exactly
-`p-1+t` tiles. A repeated class must already contain a whole eye.
-Otherwise two distinct draws would each need to complete their own eye,
-requiring `2*(p-1)` waiting tiles in the class. This already rules out
-`t=0`. With fewer than `2*(p-1)` tiles, the existing eye is also the only
-possible eye in that class after a draw. Removing it leaves `t < k`
-tiles in the draw class.
-Therefore the winning decomposition uses exactly `t` consecutive melds.
+Consider the draw pairs `a,a+k` for `0 <= a < L`. Each residue
+contains at most two pair indices. If `2*s < L`, more than `2*t`
+pairs therefore lie in classes of size exactly `p-1+t`. Each such
+class must already contain a whole eye. Otherwise the two draws
+would each have to complete their own eye, requiring `2*(p-1)`
+tiles, which exceeds the class size. This rules out `t=0`.
+The existing eye remains the only possible one in the class after
+either draw. Removing it leaves `t<k` tiles in the draw class, so
+the winning decomposition uses exactly `t` consecutive melds.
 
-Call ranks at least `k` high. A consecutive meld contributes a high
-tile in an initial segment of the residue classes, so the high counts
-from the consecutive melds decrease weakly across residues. In a
-repeated class `i` with excess `t`, let `l_i` count the high tiles
-left after removing its eye. A low draw in class `i` leaves `l_i`
-high tiles and a high draw leaves `l_i+1`. A draw in a different
-class leaves a baseline count `b_i` equal to the number of high
-tiles after removing `p-1` copies of the eye rank. In all three
-cases, reducing the high count modulo `k` discards any identical
-melds.
+For a pair indexed by `a`, count the tiles in residue `a mod k`
+at or above `a+k`. A run contributes one precisely when its start
+exceeds `a`. Reducing this count modulo `k` removes identical
+melds, so the resulting counts are weakly decreasing in `a`.
+For a class of size `p-1+t`, let `l_a` count these tiles after
+removing its eye. A draw of `a` then gives `l_a`, and a draw of
+`a+k` gives `l_a+1`. A draw in a different class gives the
+baseline `b_a` from removing `p-1` copies of the eye rank.
 
-For `i < j`, a low draw in `i` gives `b_j <= l_i`, and a high
-draw in `j` gives `l_j+1 <= b_i`. Thus `l_i+b_i` strictly decreases
-and lies between 0 and `2*t-1`, so there can be at most `2*t` such
-classes. This contradicts the count from the excesses.
+For `a < b` in different residues, a low draw at `a` gives
+`b_b <= l_a`, and a high draw at `b` gives `l_b+1 <= b_a`.
+Hence `l_a+b_a` strictly decreases between these pairs. The
+remaining pairs involve at least two residues, so between pairs
+in the same residue there is a pair in another remaining residue.
+Thus all their strictly decreasing values fit in the range from 0
+to `2*t-1`, which contradicts the count of more than `2*t` pairs.
 
-[`LowerBounds.lean`](MeldSizeObstruction/LowerBounds.lean) proves the
-general bound as `FullWait.meld_count_lower_with_repeated_residues`.
-The theorem `minimum_meld_count_of_le_twice` also supplies the attaining
-hand for `k <= R <= 2*k`.
-
-For even `k`, the first extra rank beyond `2*k` forces one more meld.
-At the previous minimum, the excess budget and the count bound force
-all `k` classes to have the same excess `t = k/2`. Their strictly
-decreasing values `l_i+b_i` then fill exactly the integers from
-`k-1` down to 0. Drawing rank `2*k` leaves that tile in the melds,
-in a class with fewer than `k` tiles. It must be in a consecutive
-meld whose start is above `k`. This meld gives a high tile to the
-last class, contradicting its zero baseline count.
-
-For even `k` and `R >= 2*k+1`, the lower bound is therefore
-`q*(k-1)+k/2+1`. The periodic construction attains it at both
-`R = 2*k+1` and `R = 2*k+2`, as proved by
-`minimum_meld_count_even_beyond_twice`.
+[`LowerBounds.lean`](MeldSizeObstruction/LowerBounds.lean) proves
+these claims as `FullWait.meld_count_lower_with_draw_pairs` and
+`minimum_meld_count_even_of_le_thrice`.
 
 For odd `k`, the same waiting hand used on `2*k` ranks also wins
 after drawing rank `2*k`. Its last sequence starts at rank `k`.

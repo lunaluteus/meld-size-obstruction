@@ -26,6 +26,8 @@ import Mathlib.Tactic.IntervalCases
 #print axioms MeldSizeObstruction.minimum_meld_count_even_beyond_twice
 #print axioms MeldSizeObstruction.exists_fullWait_odd_one_past_twice
 #print axioms MeldSizeObstruction.minimum_meld_count_one_past_twice
+#print axioms MeldSizeObstruction.FullWait.meld_count_lower_with_draw_pairs
+#print axioms MeldSizeObstruction.minimum_meld_count_even_of_le_thrice
 
 open MeldSizeObstruction
 
@@ -148,6 +150,12 @@ example : (∃ h : Multiset ℕ, FullWait 4 5 9 h ∧ h.card + 1 = 5 + 4 * 6) �
 example : (∃ h : Multiset ℕ, FullWait 5 6 11 h ∧ h.card + 1 = 6 + 5 * 7) ∧
     ∀ (h : Multiset ℕ) (m : ℕ), FullWait 5 6 11 h → h.card + 1 = 6 + 5 * m → 7 ≤ m :=
   minimum_meld_count_one_past_twice (k := 5) (q := 1) (by decide) (by decide)
+
+/-- Four-tile melds and a five-tile eye need seven melds on twelve ranks. -/
+example : (∃ h : Multiset ℕ, FullWait 4 5 12 h ∧ h.card + 1 = 5 + 4 * 7) ∧
+    ∀ (h : Multiset ℕ) (m : ℕ), FullWait 4 5 12 h → h.card + 1 = 5 + 4 * m → 7 ≤ m :=
+  minimum_meld_count_even_of_le_thrice (k := 4) (q := 1) (ranks := 12)
+    (by decide) (by decide) (by decide) (by decide) (by decide)
 
 /-- With only one drawable residue, the eye obstruction no longer applies. -/
 example : FullWait 4 2 1 (Multiset.replicate 5 0) := by
